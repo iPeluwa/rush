@@ -1,0 +1,85 @@
+# TaskRush Plugin Manifest
+[plugin]
+name = "slack-notify"
+version = "1.0.0"
+description = "Send Slack notifications for task events"
+author = "TaskRush Community"
+license = "MIT"
+homepage = "https://github.com/taskrush/plugins/slack-notify"
+repository = "https://github.com/taskrush/plugins"
+
+# Requirements
+taskrush_version = ">=0.3.0"
+rust_version = "1.75"
+
+# Plugin type and entry point
+type = "native"
+entry_point = "libtaskrush_plugin_slack_notify.so"
+
+# Dependencies (other plugins this depends on)
+dependencies = []
+
+# Permissions requested by this plugin
+[[permissions]]
+type = "network"
+hosts = ["hooks.slack.com", "slack.com"]
+reason = "Send webhook notifications to Slack"
+
+[[permissions]]
+type = "environment"
+vars = ["SLACK_WEBHOOK", "SLACK_*"]
+reason = "Read Slack configuration from environment variables"
+
+# Configuration schema (for validation and documentation)
+[config.schema]
+webhook_url = { type = "string", required = false, description = "Slack webhook URL (can also use SLACK_WEBHOOK env var)" }
+channel = { type = "string", required = false, description = "Default Slack channel" }
+username = { type = "string", required = false, default = "TaskRush", description = "Bot username" }
+icon_emoji = { type = "string", required = false, default = ":rocket:", description = "Bot icon emoji" }
+events = { type = "array", items = "string", required = false, default = ["success", "failure"], description = "Events to notify on" }
+
+# Usage examples
+[[examples]]
+name = "Basic notification"
+description = "Send notifications on task success and failure"
+config = '''
+webhook_url = "https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK"
+channel = "#builds"
+events = ["success", "failure"]
+'''
+
+[[examples]]
+name = "All events"
+description = "Send notifications for all task events"
+config = '''
+webhook_url = "${SLACK_WEBHOOK}"
+username = "BuildBot"
+icon_emoji = ":construction:"
+events = ["start", "success", "failure", "timeout"]
+'''
+
+[[examples]]
+name = "Per-task configuration"
+description = "Different channels for different tasks"
+usage = '''
+# In .rush file:
+plugins:
+  - name: slack-notify
+    config:
+      webhook_url: "${SLACK_WEBHOOK}"
+
+tasks:
+  build:
+    cmd: npm run build
+    plugins:
+      slack-notify:
+        channel: "#builds"
+        message: "Build completed for ${BRANCH}"
+  
+  deploy:
+    cmd: kubectl apply -f deployment.yaml
+    plugins:
+      slack-notify:
+        channel: "#deployments"
+        events: ["success", "failure"]
+'''
