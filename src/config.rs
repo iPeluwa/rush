@@ -33,18 +33,22 @@ impl RushConfig {
     fn expand_env_vars(content: &str) -> String {
         // Handle ${VAR:-default} syntax
         let default_regex = regex::Regex::new(r"\$\{([^}]+):-([^}]*)\}").unwrap();
-        let mut expanded = default_regex.replace_all(content, |caps: &regex::Captures| {
-            let var_name = &caps[1];
-            let default_value = &caps[2];
-            std::env::var(var_name).unwrap_or_else(|_| default_value.to_string())
-        }).to_string();
+        let mut expanded = default_regex
+            .replace_all(content, |caps: &regex::Captures| {
+                let var_name = &caps[1];
+                let default_value = &caps[2];
+                std::env::var(var_name).unwrap_or_else(|_| default_value.to_string())
+            })
+            .to_string();
 
         // Handle regular ${VAR} syntax
         let var_regex = regex::Regex::new(r"\$\{([^}]+)\}").unwrap();
-        expanded = var_regex.replace_all(&expanded, |caps: &regex::Captures| {
-            let var_name = &caps[1];
-            std::env::var(var_name).unwrap_or_else(|_| format!("${{{}}}", var_name))
-        }).to_string();
+        expanded = var_regex
+            .replace_all(&expanded, |caps: &regex::Captures| {
+                let var_name = &caps[1];
+                std::env::var(var_name).unwrap_or_else(|_| format!("${{{}}}", var_name))
+            })
+            .to_string();
 
         expanded
     }

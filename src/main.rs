@@ -46,22 +46,22 @@ async fn main() -> Result<()> {
     let config = RushConfig::find_config()?;
     let graph = TaskGraph::from(&config);
     let executor = TaskExecutor::new(graph);
-    
+
     // Handle --list flag
     if matches.get_flag("list") {
-    println!("📋 Available tasks:\n");
-    let mut tasks: Vec<_> = config.tasks.iter().collect();
-    tasks.sort_by_key(|(name, _)| *name);
-    
-    for (name, task) in tasks {
+        println!("📋 Available tasks:\n");
+        let mut tasks: Vec<_> = config.tasks.iter().collect();
+        tasks.sort_by_key(|(name, _)| *name);
+
+        for (name, task) in tasks {
             match &task.description {
-            Some(desc) => {
-                println!("  📦 {}", name);
-            println!("     {}", desc);
-        println!("     Command: {}", task.cmd);
-        if !task.deps.is_empty() {
-                println!("     Dependencies: {}", task.deps.join(", "));
-                }
+                Some(desc) => {
+                    println!("  📦 {}", name);
+                    println!("     {}", desc);
+                    println!("     Command: {}", task.cmd);
+                    if !task.deps.is_empty() {
+                        println!("     Dependencies: {}", task.deps.join(", "));
+                    }
                     println!();
                 }
                 None => {
@@ -75,14 +75,16 @@ async fn main() -> Result<()> {
         }
         return Ok(());
     }
-    
+
     if let Some(task_name) = matches.get_one::<String>("task") {
         let parallel = matches.get_flag("parallel");
         let watch = matches.get_flag("watch");
-        
+
         if watch {
             println!("🔍 Starting file watcher for task: {}", task_name);
-            executor.execute_task_with_watch(task_name, parallel).await?;
+            executor
+                .execute_task_with_watch(task_name, parallel)
+                .await?;
         } else if parallel {
             executor.execute_task_parallel(task_name).await?;
         } else {

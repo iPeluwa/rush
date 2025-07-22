@@ -263,7 +263,7 @@ impl TaskExecutor {
         }
 
         println!("👀 Watching for file changes... (Press Ctrl+C to stop)");
-        
+
         // Set up file watcher
         let (tx, rx) = mpsc::channel();
         let mut watcher: RecommendedWatcher = Watcher::new(
@@ -284,15 +284,15 @@ impl TaskExecutor {
                 Ok(_event) => {
                     // Debounce: wait a bit for more changes
                     std::thread::sleep(Duration::from_millis(200));
-                    
+
                     // Drain any additional events
                     while rx.try_recv().is_ok() {}
-                    
+
                     println!("\n🔄 File change detected, re-running task: {}", task_name);
-                    
+
                     // Clear cache to force rebuild
                     let _ = std::fs::remove_dir_all(".rush-cache");
-                    
+
                     if parallel {
                         if let Err(e) = self.execute_task_parallel(task_name).await {
                             eprintln!("❌ Task failed: {}", e);
@@ -300,7 +300,7 @@ impl TaskExecutor {
                     } else if let Err(e) = self.execute_task(task_name).await {
                         eprintln!("❌ Task failed: {}", e);
                     }
-                    
+
                     println!("👀 Watching for more changes...");
                 }
                 Err(mpsc::RecvTimeoutError::Timeout) => {
@@ -312,7 +312,7 @@ impl TaskExecutor {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
