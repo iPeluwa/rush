@@ -6,6 +6,7 @@ class RushCli < Formula
   license "MIT"
 
   def install
+    bin.install "rush-cli"
     bin.install "rush"
   end
 

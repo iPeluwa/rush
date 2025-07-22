@@ -96,7 +96,7 @@ jobs:
         sha256sums=('SKIP')  # Should be calculated manually
 
         package() {
-            install -Dm755 "$srcdir/rush" "$pkgdir/usr/bin/rush"
+            install -Dm755 "$srcdir/rush-cli" "$pkgdir/usr/bin/rush"
         }
         EOF
 
@@ -127,7 +127,7 @@ jobs:
 
         apps:
           rush-cli:
-            command: bin/rush
+            command: bin/rush-cli
             plugs: [home, network]
 
         parts:
