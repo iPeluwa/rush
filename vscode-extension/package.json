@@ -2,7 +2,7 @@
   "name": "taskrush-language-support",
   "displayName": "TaskRush Language Support",
   "description": "Language support for TaskRush .rush configuration files",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "publisher": "taskrush",
   "engines": {
     "vscode": "^1.60.0"
