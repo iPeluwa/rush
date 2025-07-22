@@ -1,0 +1,255 @@
+name: Version Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.2.4)'
+        required: true
+        type: string
+      pre_release:
+        description: 'Is this a pre-release?'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  version-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if [[ ! $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "❌ Invalid version format. Use semantic versioning (e.g., 1.2.3)"
+            exit 1
+          fi
+          echo "✅ Version format is valid: $VERSION"
+
+      - name: Check if version already exists
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if git tag --list | grep -q "^v$VERSION$"; then
+            echo "❌ Version v$VERSION already exists as a git tag"
+            exit 1
+          fi
+          echo "✅ Version v$VERSION is available"
+
+      - name: Update Cargo.toml version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"$VERSION\"/" Cargo.toml
+          echo "✅ Updated Cargo.toml to version $VERSION"
+
+      - name: Update npm package.json version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          cd npm-package
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+          echo "✅ Updated npm package.json to version $VERSION"
+
+      - name: Update npm install.js version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          cd npm-package
+          sed -i "s/const VERSION = 'v.*'/const VERSION = 'v$VERSION'/" install.js
+          echo "✅ Updated npm install.js to version v$VERSION"
+
+      - name: Update VS Code extension version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          cd vscode-extension
+          sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" package.json
+          echo "✅ Updated VS Code extension to version $VERSION"
+
+      - name: Update version in README
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          # Update any version references in README
+          sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v$VERSION/g" README.md
+          echo "✅ Updated README version references"
+
+      - name: Verify Cargo.lock consistency
+        run: |
+          cargo check --quiet
+          echo "✅ Cargo.lock is consistent"
+
+      - name: Create version sync commit
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add .
+          git diff --staged --quiet && echo "No changes to commit" || (
+            git commit -m "🔄 Sync all versions to v$VERSION
+
+- Update Cargo.toml version
+- Update npm package.json version  
+- Update npm install.js VERSION constant
+- Update VS Code extension version
+- Update README version references
+- Ensure Cargo.lock consistency
+
+All components now use version $VERSION consistently."
+            git push origin master
+            echo "✅ Committed and pushed version sync changes"
+          )
+
+      - name: Create and push git tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          git tag -a "v$VERSION" -m "TaskRush v$VERSION"
+          git push origin "v$VERSION"
+          echo "✅ Created and pushed git tag v$VERSION"
+
+      - name: Wait for tag-triggered workflows
+        run: |
+          echo "⏳ Waiting for tag-triggered workflows to complete..."
+          sleep 10
+
+  wait-for-release:
+    runs-on: ubuntu-latest
+    needs: version-sync
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for release workflow to complete
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          echo "⏳ Waiting for release workflow to create GitHub release..."
+          
+          # Wait up to 10 minutes for the release to be created
+          for i in {1..60}; do
+            if gh release view "v$VERSION" >/dev/null 2>&1; then
+              echo "✅ GitHub release v$VERSION has been created"
+              break
+            fi
+            echo "Waiting for release... (attempt $i/60)"
+            sleep 10
+          done
+          
+          # Verify the release exists
+          if ! gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "❌ GitHub release v$VERSION was not created after 10 minutes"
+            exit 1
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify all release assets are present
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Expected assets
+          EXPECTED_ASSETS=(
+            "rush-x86_64-apple-darwin.tar.gz"
+            "rush-aarch64-apple-darwin.tar.gz"
+            "rush-x86_64-pc-windows-msvc.zip"
+            "rush-x86_64-unknown-linux-gnu.tar.gz" 
+            "rush-x86_64-unknown-linux-musl.tar.gz"
+          )
+          
+          echo "🔍 Verifying release assets for v$VERSION..."
+          
+          for asset in "${EXPECTED_ASSETS[@]}"; do
+            if gh release view "v$VERSION" --json assets --jq '.assets[].name' | grep -q "^$asset$"; then
+              echo "✅ Found asset: $asset"
+            else
+              echo "❌ Missing asset: $asset"
+              exit 1
+            fi
+          done
+          
+          echo "✅ All expected release assets are present"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Test npm package installation
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Wait a bit more for npm package to be available
+          echo "⏳ Waiting for npm package to be published..."
+          sleep 30
+          
+          # Test npm package installation in a clean environment
+          mkdir -p /tmp/npm-test
+          cd /tmp/npm-test
+          
+          # Try to install the specific version
+          npm install "taskrush@$VERSION" --no-package-lock
+          
+          # Test that it works
+          echo 'tasks:
+  test:
+    cmd: echo "Version sync test successful!"
+    description: Test version sync' > .rush
+          
+          npx taskrush test
+          
+          # Check version consistency
+          BINARY_VERSION=$(npx taskrush --version | awk '{print $2}')
+          if [[ "$BINARY_VERSION" == "$VERSION" ]]; then
+            echo "✅ Binary version matches: $BINARY_VERSION"
+          else
+            echo "❌ Binary version mismatch: expected $VERSION, got $BINARY_VERSION"
+            exit 1
+          fi
+          
+          echo "✅ npm package v$VERSION works correctly"
+
+      - name: Create release summary
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          PRE_RELEASE="${{ github.event.inputs.pre_release }}"
+          
+          cat >> $GITHUB_STEP_SUMMARY << EOF
+          # 🎉 TaskRush v$VERSION Release Complete!
+          
+          ## ✅ Version Sync Successful
+          
+          All components are now synchronized to version **$VERSION**:
+          
+          - 📦 **Cargo.toml**: $VERSION
+          - 📦 **npm package**: $VERSION  
+          - 📦 **VS Code extension**: $VERSION
+          - 🏷️ **Git tag**: v$VERSION
+          - 🚀 **GitHub release**: v$VERSION
+          - 📥 **Binary version**: $VERSION
+          
+          ## 🛠️ Installation Methods
+          
+          \`\`\`bash
+          # NPM (recommended)
+          npm install -g taskrush@$VERSION
+          
+          # Cargo
+          cargo install taskrush --version $VERSION
+          
+          # Direct download
+          # https://github.com/iPeluwa/rush/releases/tag/v$VERSION
+          \`\`\`
+          
+          ## 🔗 Links
+          
+          - [📋 GitHub Release](https://github.com/iPeluwa/rush/releases/tag/v$VERSION)
+          - [📦 npm Package](https://www.npmjs.com/package/taskrush/v/$VERSION)
+          - [⚡ crates.io](https://crates.io/crates/taskrush/$VERSION)
+          
+          $(if [[ "$PRE_RELEASE" == "true" ]]; then echo "⚠️ **This is a pre-release version**"; fi)
+          EOF
