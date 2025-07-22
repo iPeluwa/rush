@@ -49,19 +49,19 @@ impl TaskGraph {
         let mut count = 1;
         let mut queue = vec![start_task];
         let mut seen = HashSet::new();
-        
+
         while let Some(task) = queue.pop() {
             if seen.contains(task) {
                 continue;
             }
             seen.insert(task);
-            
+
             if let Some(deps) = self.dependencies.get(task) {
                 count += deps.len();
                 queue.extend(deps.iter().map(|s| s.as_str()));
             }
         }
-        
+
         count.min(self.tasks.len()) // Cap at total task count
     }
 

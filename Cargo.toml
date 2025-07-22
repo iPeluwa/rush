@@ -2,6 +2,7 @@
 name = "taskrush"
 version = "0.2.1"
 edition = "2021"
+rust-version = "1.82"
 description = "A modern task runner with parallel execution and intelligent caching"
 license = "MIT"
 repository = "https://github.com/iPeluwa/rush"
