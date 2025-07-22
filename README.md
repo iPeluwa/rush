@@ -14,7 +14,7 @@ A modern task runner with parallel execution, intelligent caching, and smart dep
 
 **From crates.io (recommended):**
 ```bash
-cargo install rush
+cargo install rush-cli
 ```
 
 **From git (latest):**

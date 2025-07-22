@@ -1,5 +1,5 @@
 [package]
-name = "rush"
+name = "rush-cli"
 version = "0.1.0"
 edition = "2024"
 description = "A modern task runner with parallel execution and intelligent caching"
