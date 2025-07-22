@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 description = "A modern task runner with parallel execution and intelligent caching"
 license = "MIT"
+repository = "https://github.com/iPeluwa/rush"
+readme = "README.md"
+keywords = ["task-runner", "build", "automation", "parallel", "caching"]
+categories = ["command-line-utilities", "development-tools"]
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }

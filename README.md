@@ -12,21 +12,28 @@ A modern task runner with parallel execution, intelligent caching, and smart dep
 
 ## Installation
 
-**From source (requires Rust):**
+**From crates.io (recommended):**
+```bash
+cargo install rush
+```
+
+**From git (latest):**
+```bash
+cargo install --git https://github.com/iPeluwa/rush.git
+```
+
+**Pre-built binaries:**
+Download from [GitHub releases](https://github.com/iPeluwa/rush/releases) for:
+- Linux (x86_64, musl)
+- macOS (Intel, Apple Silicon)  
+- Windows (x86_64)
+
+**From source:**
 ```bash
 git clone https://github.com/iPeluwa/rush.git
 cd rush
 cargo install --path .
 ```
-
-**From git (requires Rust):**
-```bash
-cargo install --git https://github.com/iPeluwa/rush.git
-```
-
-**Pre-built binaries:** Coming soon - will be available in GitHub releases
-
-**Package managers:** Coming soon - homebrew, apt, etc.
 
 ## Getting Started
 
