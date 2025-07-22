@@ -43,11 +43,11 @@ impl TaskExecutor {
         let execution_order = self
             .graph
             .topological_sort(task_name)
-            .with_context(|| format!("Failed to resolve dependencies for task '{}'", task_name))?;
+            .with_context(|| format!("Failed to resolve dependencies for task '{task_name}'"))?;
 
         if self.verbose {
             println!("🔍 Debug: Task dependency resolution");
-            println!("   Target task: {}", task_name);
+            println!("   Target task: {task_name}");
             println!("   Execution order: {}", execution_order.join(" -> "));
             println!("   Total tasks to run: {}", execution_order.len());
         } else {
