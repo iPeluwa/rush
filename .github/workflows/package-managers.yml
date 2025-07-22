@@ -1,8 +1,9 @@
 name: Package Managers
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   chocolatey:
@@ -15,7 +16,7 @@ jobs:
       id: version
       shell: powershell
       run: |
-        $version = "${{ github.event.release.tag_name }}" -replace "^v", ""
+        $version = "${{ github.ref_name }}" -replace "^v", ""
         echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
     - name: Create Chocolatey package

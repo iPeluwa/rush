@@ -1,8 +1,9 @@
 name: Publish to NPM
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   publish-npm:
@@ -18,7 +19,7 @@ jobs:
       - name: Update npm package version
         run: |
           cd npm-package
-          # Extract version from tag (remove 'v' prefix)
+          # Extract version from tag (remove 'v' prefix)  
           VERSION=${GITHUB_REF#refs/tags/v}
           echo "Publishing version: $VERSION"
           
