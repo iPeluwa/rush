@@ -1,0 +1,44 @@
+tasks:
+  check:
+    cmd: cargo check
+    description: "Check code for compilation errors"
+    cache: [Cargo.toml, Cargo.lock]
+    
+  build:
+    cmd: cargo build
+    description: "Build the project"
+    deps: [check]
+    
+  test:
+    cmd: cargo test
+    description: "Run unit tests"
+    deps: [build]
+    
+  clippy:
+    cmd: cargo clippy -- -D warnings
+    description: "Run Clippy linter"
+    deps: [check]
+    
+  fmt-check:
+    cmd: cargo fmt -- --check
+    description: "Check code formatting"
+    
+  doc:
+    cmd: cargo doc --no-deps
+    description: "Generate documentation"
+    deps: [check]
+    
+  bench:
+    cmd: cargo bench
+    description: "Run benchmarks"
+    deps: [build]
+    
+  ci:
+    cmd: echo "🎉 All Rust CI checks passed!"
+    description: "Run complete CI pipeline"
+    deps: [test, clippy, fmt-check, doc]
+    
+  release:
+    cmd: cargo build --release
+    description: "Build optimized release"
+    deps: [ci]

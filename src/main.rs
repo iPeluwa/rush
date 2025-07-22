@@ -12,7 +12,7 @@ use graph::TaskGraph;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = Command::new("rush")
-        .version("0.2.0")
+        .version("0.2.1")
         .about("A modern task runner with parallel execution and intelligent caching")
         .arg(
             Arg::new("task")
@@ -41,11 +41,19 @@ async fn main() -> Result<()> {
                 .help("Watch for file changes and re-run task")
                 .action(clap::ArgAction::SetTrue),
         )
+        .arg(
+            Arg::new("verbose")
+                .short('v')
+                .long("verbose")
+                .help("Enable verbose output and debugging info")
+                .action(clap::ArgAction::SetTrue),
+        )
         .get_matches();
 
     let config = RushConfig::find_config()?;
     let graph = TaskGraph::from(&config);
-    let executor = TaskExecutor::new(graph);
+    let verbose = matches.get_flag("verbose");
+    let executor = TaskExecutor::new(graph, verbose);
 
     // Handle --list flag
     if matches.get_flag("list") {

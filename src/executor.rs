@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
+use indicatif::{ProgressBar, ProgressStyle};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use std::path::Path;
 use std::process::Stdio;
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use tokio::process::Command;
 
 use crate::cache::TaskCache;
@@ -12,24 +13,51 @@ use crate::graph::{Task, TaskGraph};
 pub struct TaskExecutor {
     graph: TaskGraph,
     cache: TaskCache,
+    verbose: bool,
 }
 
 impl TaskExecutor {
-    pub fn new(graph: TaskGraph) -> Self {
+    pub fn new(graph: TaskGraph, verbose: bool) -> Self {
         Self {
             graph,
             cache: TaskCache::new(),
+            verbose,
         }
     }
 
     pub async fn execute_task(&self, task_name: &str) -> Result<()> {
-        let execution_order = self.graph.topological_sort(task_name)?;
+        // Validate task exists
+        if !self.graph.tasks.contains_key(task_name) {
+            return Err(anyhow::anyhow!(
+                "❌ Task '{}' not found. Available tasks: {}",
+                task_name,
+                self.graph.tasks.keys().cloned().collect::<Vec<_>>().join(", ")
+            ));
+        }
 
-        println!("Execution order: {}", execution_order.join(" -> "));
+        let execution_order = self.graph.topological_sort(task_name)
+            .with_context(|| format!("Failed to resolve dependencies for task '{}'", task_name))?;
+
+        if self.verbose {
+            println!("🔍 Debug: Task dependency resolution");
+            println!("   Target task: {}", task_name);
+            println!("   Execution order: {}", execution_order.join(" -> "));
+            println!("   Total tasks to run: {}", execution_order.len());
+        } else {
+            println!("Execution order: {}", execution_order.join(" -> "));
+        }
 
         for task_name in execution_order {
             if let Some(task) = self.graph.tasks.get(&task_name) {
-                self.run_single_task(task).await?;
+                if self.verbose {
+                    println!("🔍 Debug: About to execute task '{}'", task.name);
+                    println!("   Command: {}", task.cmd);
+                    if !task.env.is_empty() {
+                        println!("   Environment: {:?}", task.env);
+                    }
+                }
+                self.run_single_task(task).await
+                    .with_context(|| format!("Task '{}' failed during execution", task.name))?;
             }
         }
 
@@ -49,9 +77,18 @@ impl TaskExecutor {
 
         for (level, tasks) in levels.iter().enumerate() {
             if tasks.len() == 1 {
-                // Single task - run normally
+                // Single task - run normally  
                 if let Some(task) = self.graph.tasks.get(&tasks[0]) {
-                    self.run_single_task(task).await?;
+                    let task_progress = ProgressBar::new_spinner();
+                    task_progress.set_style(
+                        ProgressStyle::default_spinner()
+                            .template("🏃 {msg} {spinner:.green}")
+                            .unwrap(),
+                    );
+                    task_progress.set_message(format!("Running {}", task.name));
+                    
+                    self.run_single_task_with_progress(task, &task_progress).await?;
+                    task_progress.finish_with_message(format!("✅ {} completed", task.name));
                 }
             } else {
                 // Multiple independent tasks - run in parallel
@@ -66,12 +103,24 @@ impl TaskExecutor {
                 for task_name in tasks {
                     if let Some(task) = self.graph.tasks.get(task_name) {
                         let task = task.clone();
-                        let cache = TaskCache::new(); // Each task gets its own cache instance
+                        let cache = TaskCache::new();
+                        let task_progress = ProgressBar::new_spinner();
+                        task_progress.set_style(
+                            ProgressStyle::default_spinner()
+                                .template("🏃 {msg} {spinner:.green}")
+                                .unwrap(),
+                        );
+                        task_progress.set_message(format!("Running {}", task.name));
 
-                        let handle =
-                            tokio::spawn(
-                                async move { Self::run_task_standalone(&task, &cache).await },
-                            );
+                        let handle = tokio::spawn(async move {
+                            let result = Self::run_task_standalone_with_progress(&task, &cache, &task_progress).await;
+                            if result.is_ok() {
+                                task_progress.finish_with_message(format!("✅ {} completed", task.name));
+                            } else {
+                                task_progress.finish_with_message(format!("❌ {} failed", task.name));
+                            }
+                            result
+                        });
 
                         handles.push((task_name.clone(), handle));
                     }
@@ -311,6 +360,124 @@ impl TaskExecutor {
                     break;
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    async fn run_single_task_with_progress(&self, task: &Task, progress: &ProgressBar) -> Result<()> {
+        let start_time = Instant::now();
+        
+        // Check cache if cache files are specified
+        if !task.cache_files.is_empty() {
+            let hash = self
+                .cache
+                .compute_task_hash(&task.name, &task.cache_files)?;
+            if self.cache.is_cached(&task.name, &hash) {
+                progress.set_message(format!("⚡ {} (cached)", task.name));
+                return Ok(());
+            }
+        }
+
+        progress.set_message(format!("🏃 Running {}", task.name));
+
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", &task.cmd]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", &task.cmd]);
+            cmd
+        };
+
+        // Set environment variables
+        for (key, value) in &task.env {
+            cmd.env(key, value);
+        }
+
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let output = cmd.output().await?;
+        let elapsed = start_time.elapsed();
+
+        if output.status.success() {
+            progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
+            
+            // Cache the result if cache files are specified
+            if !task.cache_files.is_empty() {
+                let hash = self
+                    .cache
+                    .compute_task_hash(&task.name, &task.cache_files)?;
+                self.cache.mark_cached(&task.name, &hash)?;
+            }
+        } else {
+            progress.set_message(format!("❌ {} failed", task.name));
+            if !output.stderr.is_empty() {
+                eprintln!("Error output for {}:\n{}", task.name, String::from_utf8_lossy(&output.stderr));
+            }
+            anyhow::bail!(
+                "Task '{}' failed with exit code: {:?}",
+                task.name,
+                output.status.code()
+            );
+        }
+
+        Ok(())
+    }
+
+    async fn run_task_standalone_with_progress(task: &Task, cache: &TaskCache, progress: &ProgressBar) -> Result<()> {
+        let start_time = Instant::now();
+        
+        // Check cache if cache files are specified
+        if !task.cache_files.is_empty() {
+            let hash = cache.compute_task_hash(&task.name, &task.cache_files)?;
+            if cache.is_cached(&task.name, &hash) {
+                progress.set_message(format!("⚡ {} (cached)", task.name));
+                return Ok(());
+            }
+        }
+
+        progress.set_message(format!("🏃 Running {}", task.name));
+
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", &task.cmd]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", &task.cmd]);
+            cmd
+        };
+
+        // Set environment variables
+        for (key, value) in &task.env {
+            cmd.env(key, value);
+        }
+
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let output = cmd.output().await?;
+        let elapsed = start_time.elapsed();
+
+        if output.status.success() {
+            progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
+            
+            // Cache the result if cache files are specified
+            if !task.cache_files.is_empty() {
+                let hash = cache.compute_task_hash(&task.name, &task.cache_files)?;
+                cache.mark_cached(&task.name, &hash)?;
+            }
+        } else {
+            progress.set_message(format!("❌ {} failed", task.name));
+            if !output.stderr.is_empty() {
+                eprintln!("Error output for {}:\n{}", task.name, String::from_utf8_lossy(&output.stderr));
+            }
+            anyhow::bail!(
+                "Task '{}' failed with exit code: {:?}",
+                task.name,
+                output.status.code()
+            );
         }
 
         Ok(())

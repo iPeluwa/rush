@@ -33,13 +33,36 @@ impl TaskGraph {
     }
 
     pub fn topological_sort(&self, start_task: &str) -> Result<Vec<String>> {
-        let mut visited = HashSet::new();
-        let mut stack = Vec::new();
-        let mut temp_visited = HashSet::new();
+        // Pre-allocate with estimated capacity for better performance
+        let estimated_size = self.estimate_task_count(start_task);
+        let mut visited = HashSet::with_capacity(estimated_size);
+        let mut stack = Vec::with_capacity(estimated_size);
+        let mut temp_visited = HashSet::with_capacity(estimated_size);
 
         self.dfs_visit(start_task, &mut visited, &mut temp_visited, &mut stack)?;
 
         Ok(stack)
+    }
+
+    fn estimate_task_count(&self, start_task: &str) -> usize {
+        // Simple heuristic: estimate based on dependency depth
+        let mut count = 1;
+        let mut queue = vec![start_task];
+        let mut seen = HashSet::new();
+        
+        while let Some(task) = queue.pop() {
+            if seen.contains(task) {
+                continue;
+            }
+            seen.insert(task);
+            
+            if let Some(deps) = self.dependencies.get(task) {
+                count += deps.len();
+                queue.extend(deps.iter().map(|s| s.as_str()));
+            }
+        }
+        
+        count.min(self.tasks.len()) // Cap at total task count
     }
 
     fn dfs_visit(

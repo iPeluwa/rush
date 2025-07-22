@@ -1,0 +1,44 @@
+tasks:
+  install:
+    cmd: echo "📦 Installing dependencies (npm install)"
+    description: "Install project dependencies"
+    cache: [package.json, package-lock.json]
+    
+  lint:
+    cmd: echo "🔍 Linting code (eslint src/)"
+    description: "Run ESLint on source files"
+    deps: [install]
+    
+  test:
+    cmd: echo "🧪 Running tests (jest)"
+    description: "Run unit tests with Jest"
+    deps: [install]
+    
+  build:
+    cmd: echo "🏗️ Building project (webpack)"
+    description: "Build production bundle"
+    deps: [install]
+    cache: [src/, package.json, webpack.config.js]
+    
+  typecheck:
+    cmd: echo "🔍 Type checking (tsc --noEmit)"
+    description: "TypeScript type checking"
+    deps: [install]
+    
+  dev:
+    cmd: echo "🚀 Starting dev server on http://localhost:3000"
+    description: "Start development server"
+    deps: [install]
+    
+  ci:
+    cmd: echo "✅ All CI checks passed!"
+    description: "Run complete CI pipeline"
+    deps: [test, lint, typecheck, build]
+    
+  deploy:
+    cmd: echo "🚀 Deploying to ${DEPLOY_ENV:-staging}..."
+    description: "Deploy application"
+    deps: [ci]
+    env:
+      NODE_ENV: "production"
+      DEPLOY_ENV: "${DEPLOY_ENV:-staging}"
