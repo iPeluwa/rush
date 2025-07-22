@@ -56,8 +56,8 @@ async fn main() -> Result<()> {
         for (name, task) in tasks {
             match &task.description {
                 Some(desc) => {
-                    println!("  📦 {}", name);
-                    println!("     {}", desc);
+                    println!("  📦 {name}");
+                    println!("     {desc}");
                     println!("     Command: {}", task.cmd);
                     if !task.deps.is_empty() {
                         println!("     Dependencies: {}", task.deps.join(", "));
@@ -81,7 +81,7 @@ async fn main() -> Result<()> {
         let watch = matches.get_flag("watch");
 
         if watch {
-            println!("🔍 Starting file watcher for task: {}", task_name);
+            println!("🔍 Starting file watcher for task: {task_name}");
             executor
                 .execute_task_with_watch(task_name, parallel)
                 .await?;

@@ -38,7 +38,7 @@ impl TaskCache {
         }
 
         let result = hasher.finalize();
-        Ok(format!("{:x}", result))
+        Ok(format!("{result:x}"))
     }
 
     pub fn is_cached(&self, task_name: &str, hash: &str) -> bool {
@@ -54,7 +54,7 @@ impl TaskCache {
             for entry in entries.flatten() {
                 let file_name = entry.file_name();
                 let file_name_str = file_name.to_string_lossy();
-                if file_name_str.starts_with(&format!("{}.", task_name)) {
+                if file_name_str.starts_with(&format!("{task_name}.")) {
                     let _ = fs::remove_file(entry.path());
                 }
             }

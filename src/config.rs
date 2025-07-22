@@ -46,7 +46,7 @@ impl RushConfig {
         expanded = var_regex
             .replace_all(&expanded, |caps: &regex::Captures| {
                 let var_name = &caps[1];
-                std::env::var(var_name).unwrap_or_else(|_| format!("${{{}}}", var_name))
+                std::env::var(var_name).unwrap_or_else(|_| format!("${{{var_name}}}"))
             })
             .to_string();
 

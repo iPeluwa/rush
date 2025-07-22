@@ -255,7 +255,7 @@ impl TaskExecutor {
 
     pub async fn execute_task_with_watch(&self, task_name: &str, parallel: bool) -> Result<()> {
         // Run once initially
-        println!("🚀 Initial run of task: {}", task_name);
+        println!("🚀 Initial run of task: {task_name}");
         if parallel {
             self.execute_task_parallel(task_name).await?;
         } else {
@@ -288,17 +288,17 @@ impl TaskExecutor {
                     // Drain any additional events
                     while rx.try_recv().is_ok() {}
 
-                    println!("\n🔄 File change detected, re-running task: {}", task_name);
+                    println!("\n🔄 File change detected, re-running task: {task_name}");
 
                     // Clear cache to force rebuild
                     let _ = std::fs::remove_dir_all(".rush-cache");
 
                     if parallel {
                         if let Err(e) = self.execute_task_parallel(task_name).await {
-                            eprintln!("❌ Task failed: {}", e);
+                            eprintln!("❌ Task failed: {e}");
                         }
                     } else if let Err(e) = self.execute_task(task_name).await {
-                        eprintln!("❌ Task failed: {}", e);
+                        eprintln!("❌ Task failed: {e}");
                     }
 
                     println!("👀 Watching for more changes...");
