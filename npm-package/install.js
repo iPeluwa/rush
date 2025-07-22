@@ -8,7 +8,7 @@ const { createReadStream, createWriteStream } = require('fs');
 const zlib = require('zlib');
 
 const REPO = 'iPeluwa/rush';
-const VERSION = 'v0.2.0';
+const VERSION = 'v0.2.1';
 
 function getPlatformInfo() {
   const platform = process.platform;
@@ -18,11 +18,11 @@ function getPlatformInfo() {
   const platformMap = {
     'darwin': {
       'x64': 'rush-x86_64-apple-darwin.tar.gz',
-      'arm64': 'rush-aarch64-apple-darwin.tar.gz'
+      'arm64': 'rush-x86_64-apple-darwin.tar.gz' // Use x86_64 build for Apple Silicon (works via Rosetta 2)
     },
     'linux': {
       'x64': 'rush-x86_64-unknown-linux-gnu.tar.gz',
-      'arm64': 'rush-aarch64-unknown-linux-gnu.tar.gz'
+      'arm64': 'rush-x86_64-unknown-linux-gnu.tar.gz' // Fallback to x86_64 for now
     },
     'win32': {
       'x64': 'rush-x86_64-pc-windows-msvc.zip'

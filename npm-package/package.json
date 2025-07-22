@@ -1,11 +1,11 @@
 {
   "name": "taskrush",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "A modern task runner with parallel execution and intelligent caching",
   "main": "index.js",
   "bin": {
-    "taskrush": "./bin/taskrush",
-    "rush": "./bin/taskrush"
+    "taskrush": "bin/taskrush",
+    "rush": "bin/taskrush"
   },
   "scripts": {
     "postinstall": "node install.js",
@@ -25,7 +25,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/iPeluwa/rush.git"
+    "url": "git+https://github.com/iPeluwa/rush.git"
   },
   "homepage": "https://github.com/iPeluwa/rush",
   "bugs": {
