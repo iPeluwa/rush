@@ -8,7 +8,7 @@ const { createReadStream, createWriteStream } = require('fs');
 const zlib = require('zlib');
 
 const REPO = 'iPeluwa/rush';
-const VERSION = 'v0.2.4';
+const VERSION = 'v0.2.5';
 
 function getPlatformInfo() {
   const platform = process.platform;

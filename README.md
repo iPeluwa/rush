@@ -113,4 +113,4 @@ rush --watch build      # Watch for changes and rebuild automatically
 
 ## Status
 
-✅ **v0.2.4 Released** - Full-featured task runner with parallel execution, file watching, and intelligent caching!
+✅ **v0.2.5 Released** - Full-featured task runner with parallel execution, file watching, and intelligent caching!
