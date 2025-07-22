@@ -29,13 +29,13 @@ impl RushConfig {
 
     pub fn find_config() -> Result<RushConfig> {
         let candidates = [".rush", ".rush.yml", ".rush.yaml"];
-        
+
         for candidate in &candidates {
             if Path::new(candidate).exists() {
                 return Self::load(candidate);
             }
         }
-        
+
         anyhow::bail!("No .rush config file found in current directory")
     }
 }

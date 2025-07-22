@@ -22,10 +22,10 @@ impl TaskCache {
 
     pub fn compute_task_hash(&self, task_name: &str, cache_files: &[String]) -> Result<String> {
         let mut hasher = Sha256::new();
-        
+
         // Hash the task name
         hasher.update(task_name.as_bytes());
-        
+
         // Hash each cache file's content
         for file_path in cache_files {
             if Path::new(file_path).exists() {
@@ -36,7 +36,7 @@ impl TaskCache {
                 hasher.update(b"<file-not-found>");
             }
         }
-        
+
         let result = hasher.finalize();
         Ok(format!("{:x}", result))
     }
@@ -48,7 +48,7 @@ impl TaskCache {
 
     pub fn mark_cached(&self, task_name: &str, hash: &str) -> Result<()> {
         self.ensure_cache_dir()?;
-        
+
         // Remove old cache files for this task
         if let Ok(entries) = fs::read_dir(&self.cache_dir) {
             for entry in entries.flatten() {
@@ -59,11 +59,11 @@ impl TaskCache {
                 }
             }
         }
-        
+
         // Create new cache marker
         let cache_file = format!("{}/{}.{}", self.cache_dir, task_name, hash);
         fs::write(cache_file, "")?;
-        
+
         Ok(())
     }
 }

@@ -14,7 +14,7 @@ A modern task runner with parallel execution, intelligent caching, and smart dep
 
 **From crates.io (recommended):**
 ```bash
-cargo install rush-cli
+cargo install rush-build
 ```
 
 **From git (latest):**
@@ -31,16 +31,16 @@ Download from [GitHub releases](https://github.com/iPeluwa/rush/releases) for:
 **Package managers:**
 ```bash
 # macOS (Homebrew)
-brew install iPeluwa/tap/rush-cli
+brew install iPeluwa/tap/rush-build
 
 # Windows (Chocolatey) 
-choco install rush-cli
+choco install rush-build
 
 # Arch Linux (AUR)
-yay -S rush-cli
+yay -S rush-build
 
 # Snap (Universal Linux)
-snap install rush-cli
+snap install rush-build
 ```
 
 **From source:**

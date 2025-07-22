@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
     let config = RushConfig::find_config()?;
     let graph = TaskGraph::from(&config);
     let executor = TaskExecutor::new(graph);
-    
+
     if let Some(task_name) = matches.get_one::<String>("task") {
         let parallel = matches.get_flag("parallel");
         if parallel {

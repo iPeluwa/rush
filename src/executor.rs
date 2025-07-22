@@ -12,23 +12,23 @@ pub struct TaskExecutor {
 
 impl TaskExecutor {
     pub fn new(graph: TaskGraph) -> Self {
-        Self { 
-            graph, 
-            cache: TaskCache::new() 
+        Self {
+            graph,
+            cache: TaskCache::new(),
         }
     }
 
     pub async fn execute_task(&self, task_name: &str) -> Result<()> {
         let execution_order = self.graph.topological_sort(task_name)?;
-        
+
         println!("Execution order: {}", execution_order.join(" -> "));
-        
+
         for task_name in execution_order {
             if let Some(task) = self.graph.tasks.get(&task_name) {
                 self.run_single_task(task).await?;
             }
         }
-        
+
         Ok(())
     }
 
@@ -41,15 +41,17 @@ impl TaskExecutor {
     async fn run_single_task(&self, task: &Task) -> Result<()> {
         // Check cache if cache files are specified
         if !task.cache_files.is_empty() {
-            let hash = self.cache.compute_task_hash(&task.name, &task.cache_files)?;
+            let hash = self
+                .cache
+                .compute_task_hash(&task.name, &task.cache_files)?;
             if self.cache.is_cached(&task.name, &hash) {
                 println!("⚡ Task '{}' skipped (cached)", task.name);
                 return Ok(());
             }
         }
-        
+
         println!("🏃 Running task: {}", task.name);
-        
+
         let mut cmd = if cfg!(target_os = "windows") {
             let mut cmd = Command::new("cmd");
             cmd.args(["/C", &task.cmd]);
@@ -65,8 +67,7 @@ impl TaskExecutor {
             cmd.env(key, value);
         }
 
-        cmd.stdout(Stdio::piped())
-           .stderr(Stdio::piped());
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         let output = cmd.output().await?;
 
@@ -75,10 +76,12 @@ impl TaskExecutor {
             if !output.stdout.is_empty() {
                 println!("{}", String::from_utf8_lossy(&output.stdout));
             }
-            
+
             // Cache the result if cache files are specified
             if !task.cache_files.is_empty() {
-                let hash = self.cache.compute_task_hash(&task.name, &task.cache_files)?;
+                let hash = self
+                    .cache
+                    .compute_task_hash(&task.name, &task.cache_files)?;
                 self.cache.mark_cached(&task.name, &hash)?;
             }
         } else {
@@ -86,7 +89,11 @@ impl TaskExecutor {
             if !output.stderr.is_empty() {
                 eprintln!("{}", String::from_utf8_lossy(&output.stderr));
             }
-            anyhow::bail!("Task '{}' failed with exit code: {:?}", task.name, output.status.code());
+            anyhow::bail!(
+                "Task '{}' failed with exit code: {:?}",
+                task.name,
+                output.status.code()
+            );
         }
 
         Ok(())

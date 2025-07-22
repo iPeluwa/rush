@@ -34,7 +34,7 @@ jobs:
         `$url64 = '$url64'
         
         `$packageArgs = @{
-          packageName   = 'rush-cli'
+          packageName   = 'rush-build'
           unzipLocation = `$toolsDir
           url64bit      = `$url64
           checksum64    = 'REPLACE_WITH_CHECKSUM'
@@ -49,7 +49,7 @@ jobs:
         <?xml version="1.0" encoding="utf-8"?>
         <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
           <metadata>
-            <id>rush-cli</id>
+            <id>rush-build</id>
             <version>$version</version>
             <packageSourceUrl>https://github.com/iPeluwa/rush</packageSourceUrl>
             <owners>iPeluwa</owners>
@@ -82,8 +82,8 @@ jobs:
     - name: Create PKGBUILD
       run: |
         cat > PKGBUILD << 'EOF'
-        # Maintainer: Oluwapeluwa Ibrahim <email@example.com>
-        pkgname=rush-cli
+        # Maintainer: Oluwapeluwa Ibrahim <ipeluwa@gmail.com>
+        pkgname=rush-build
         pkgver=${{ steps.version.outputs.VERSION }}
         pkgrel=1
         pkgdesc="A modern task runner with parallel execution and intelligent caching"
@@ -96,7 +96,7 @@ jobs:
         sha256sums=('SKIP')  # Should be calculated manually
 
         package() {
-            install -Dm755 "$srcdir/rush-cli" "$pkgdir/usr/bin/rush"
+            install -Dm755 "$srcdir/rush-build" "$pkgdir/usr/bin/rush"
         }
         EOF
 
@@ -110,7 +110,7 @@ jobs:
       run: |
         mkdir -p snap
         cat > snap/snapcraft.yaml << 'EOF'
-        name: rush-cli
+        name: rush-build
         version: git
         summary: A modern task runner with parallel execution and intelligent caching
         description: |
@@ -126,8 +126,8 @@ jobs:
         base: core22
 
         apps:
-          rush-cli:
-            command: bin/rush-cli
+          rush-build:
+            command: bin/rush-build
             plugs: [home, network]
 
         parts:

@@ -1,4 +1,4 @@
-class RushCli < Formula
+class RushBuild < Formula
   desc "A modern task runner with parallel execution and intelligent caching"
   homepage "https://github.com/iPeluwa/rush"
   url "https://github.com/iPeluwa/rush/releases/download/v0.1.0/rush-x86_64-apple-darwin.tar.gz"
@@ -6,7 +6,7 @@ class RushCli < Formula
   license "MIT"
 
   def install
-    bin.install "rush-cli"
+    bin.install "rush-build"
     bin.install "rush"
   end
 

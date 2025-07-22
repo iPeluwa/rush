@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ impl TaskGraph {
 
     pub fn add_task(&mut self, name: String, task: Task) {
         self.tasks.insert(name.clone(), task);
-        self.dependencies.entry(name).or_insert_with(Vec::new);
+        self.dependencies.entry(name).or_default();
     }
 
     pub fn add_dependency(&mut self, task: String, dependency: String) {
@@ -38,7 +38,7 @@ impl TaskGraph {
         let mut temp_visited = HashSet::new();
 
         self.dfs_visit(start_task, &mut visited, &mut temp_visited, &mut stack)?;
-        
+
         Ok(stack)
     }
 
