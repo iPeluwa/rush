@@ -82,27 +82,36 @@ jobs:
           cargo check --quiet
           echo "✅ Cargo.lock is consistent"
 
-      - name: Create version sync commit
+      - name: Create version sync commit and tag
         run: |
           VERSION="${{ github.event.inputs.version }}"
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
+          # Add all changes
           git add .
+          
           if ! git diff --staged --quiet; then
+            # Commit the version changes first
             git commit -m "🔄 Sync all versions to v$VERSION"
+            echo "✅ Committed version sync changes"
+            
+            # Now create the tag pointing to the updated commit
+            git tag -a "v$VERSION" -m "TaskRush v$VERSION"
+            
+            # Push both the commit and tag
             git push origin master
-            echo "✅ Committed and pushed version sync changes"
+            git push origin "v$VERSION"
+            
+            echo "✅ Pushed commit and tag v$VERSION"
+            echo "The tag now points to the commit with updated versions"
           else
             echo "No changes to commit"
+            # Still create the tag if no changes (shouldn't happen normally)
+            git tag -a "v$VERSION" -m "TaskRush v$VERSION"
+            git push origin "v$VERSION"
+            echo "✅ Created tag v$VERSION"
           fi
-
-      - name: Create and push git tag
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          git tag -a "v$VERSION" -m "TaskRush v$VERSION"
-          git push origin "v$VERSION"
-          echo "✅ Created and pushed git tag v$VERSION"
 
       - name: Create summary
         run: |

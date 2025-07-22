@@ -107,10 +107,13 @@ If a release fails partway through:
 
 If the installed binary shows a different version:
 
-1. **Wait for release workflow** to complete fully
-2. **Check GitHub release assets** are all present
-3. **Clear npm cache**: `npm cache clean --force`
-4. **Reinstall**: `npm uninstall -g taskrush && npm install -g taskrush`
+1. **Check if version sync completed properly**: The tag should point to a commit with updated Cargo.toml
+2. **Wait for release workflow** to complete fully  
+3. **Check GitHub release assets** are all present
+4. **Clear npm cache**: `npm cache clean --force`
+5. **Reinstall**: `npm uninstall -g taskrush && npm install -g taskrush`
+
+**Root Cause Prevention**: Our version-sync workflow now commits version changes BEFORE creating the tag, ensuring the Release workflow builds with the correct version.
 
 ## Semantic Versioning
 
