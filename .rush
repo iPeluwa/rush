@@ -1,0 +1,12 @@
+tasks:
+  build:
+    cmd: cargo build
+    deps: [check]
+    
+  test:
+    cmd: cargo test
+    deps: [build]
+    
+  check:
+    cmd: cargo check
+    cache: [Cargo.toml, Cargo.lock]
