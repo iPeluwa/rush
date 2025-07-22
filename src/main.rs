@@ -12,7 +12,7 @@ use graph::TaskGraph;
 #[tokio::main]
 async fn main() -> Result<()> {
     let matches = Command::new("rush")
-        .version("0.2.1")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("A modern task runner with parallel execution and intelligent caching")
         .arg(
             Arg::new("task")

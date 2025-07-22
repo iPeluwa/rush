@@ -15,12 +15,21 @@ INSTALL_VERSION=$(cd npm-package && grep "const VERSION = " install.js | sed "s/
 VSCODE_VERSION=$(cd vscode-extension && node -p "require('./package.json').version")
 FORMULA_VERSION=$(grep 'download/v' Formula/taskrush.rb | sed 's/.*download\/v\([0-9.]*\)\/.*/\1/')
 
+# Check for hardcoded version in main.rs (should use env!("CARGO_PKG_VERSION"))
+HARDCODED_VERSION=$(grep -E '\.version\("[0-9.]+"\)' src/main.rs || echo "")
+if [[ -n "$HARDCODED_VERSION" ]]; then
+    MAIN_RS_VERSION=$(echo "$HARDCODED_VERSION" | sed 's/.*version("\([^"]*\)").*/\1/')
+else
+    MAIN_RS_VERSION="dynamic (✅)"
+fi
+
 echo "📦 Component versions:"
 echo "  Cargo.toml:        $CARGO_VERSION"
 echo "  npm package.json:  $NPM_VERSION"
 echo "  npm install.js:    $INSTALL_VERSION"
 echo "  VS Code extension: $VSCODE_VERSION"
 echo "  Homebrew formula:  $FORMULA_VERSION"
+echo "  main.rs version:   $MAIN_RS_VERSION"
 echo
 
 # Check if all versions match
@@ -43,6 +52,11 @@ fi
 
 if [[ "$CARGO_VERSION" != "$FORMULA_VERSION" ]]; then
     echo "❌ Mismatch: Cargo ($CARGO_VERSION) vs Homebrew formula ($FORMULA_VERSION)"
+    ALL_MATCH=false
+fi
+
+if [[ -n "$HARDCODED_VERSION" ]]; then
+    echo "❌ Hardcoded version in main.rs: $MAIN_RS_VERSION (should use env!(\"CARGO_PKG_VERSION\"))"
     ALL_MATCH=false
 fi
 
