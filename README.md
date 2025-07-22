@@ -10,6 +10,24 @@ A modern task runner with parallel execution, intelligent caching, and smart dep
 - **Cross-platform**: No shell quirks or platform-specific gotchas
 - **Lightweight**: Fast startup, simple configuration
 
+## Installation
+
+**From source (requires Rust):**
+```bash
+git clone https://github.com/iPeluwa/rush.git
+cd rush
+cargo install --path .
+```
+
+**From git (requires Rust):**
+```bash
+cargo install --git https://github.com/iPeluwa/rush.git
+```
+
+**Pre-built binaries:** Coming soon - will be available in GitHub releases
+
+**Package managers:** Coming soon - homebrew, apt, etc.
+
 ## Getting Started
 
 Create a `.rush` file in your project root:
