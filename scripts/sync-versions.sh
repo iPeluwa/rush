@@ -46,6 +46,11 @@ sed -i.bak "s/\"version\": \".*\"/\"version\": \"$NEW_VERSION\"/" package.json
 rm -f package.json.bak
 cd ..
 
+# Update Homebrew formula
+echo "📦 Updating Homebrew formula..."
+sed -i.bak "s|download/v[0-9.]*|download/v$NEW_VERSION|" Formula/taskrush.rb
+rm -f Formula/taskrush.rb.bak
+
 # Update README version references
 echo "📦 Updating README..."
 sed -i.bak "s/v[0-9]\+\.[0-9]\+\.[0-9]\+/v$NEW_VERSION/g" README.md

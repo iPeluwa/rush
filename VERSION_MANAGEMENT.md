@@ -10,8 +10,9 @@ TaskRush has multiple components that need to stay in sync:
 2. **npm-package/package.json** - npm package version
 3. **npm-package/install.js** - VERSION constant for binary downloads
 4. **vscode-extension/package.json** - VS Code extension version
-5. **Git tags** - Release tags (e.g., v0.2.3)
-6. **GitHub releases** - Release names and binary versions
+5. **Formula/taskrush.rb** - Homebrew formula download URL version
+6. **Git tags** - Release tags (e.g., v0.2.3)
+7. **GitHub releases** - Release names and binary versions
 
 ## Version Sync Workflow
 
@@ -79,6 +80,7 @@ This script will:
   npm package.json:  0.2.3
   npm install.js:    0.2.3
   VS Code extension: 0.2.3
+  Homebrew formula:  0.2.3
 
 ✅ All versions are synchronized: 0.2.3
 ```
