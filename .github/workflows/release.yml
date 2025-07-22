@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   publish-crates:
     name: Publish to crates.io
@@ -72,32 +76,30 @@ jobs:
         fi
 
     - name: Upload to Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
           rush-${{ matrix.target }}.*
+        name: "TaskRush v${{ github.ref_name }}"
+        body: |
+          # TaskRush ${{ github.ref_name }}
+          
+          A modern task runner with parallel execution and intelligent caching.
+          
+          ## Installation
+          ```bash
+          cargo install taskrush
+          ```
+          
+          ## Downloads
+          - **Linux**: `rush-x86_64-unknown-linux-gnu.tar.gz` (glibc) or `rush-x86_64-unknown-linux-musl.tar.gz` (musl)
+          - **macOS**: `rush-x86_64-apple-darwin.tar.gz` (Intel) or `rush-aarch64-apple-darwin.tar.gz` (Apple Silicon)
+          - **Windows**: `rush-x86_64-pc-windows-msvc.zip`
+          
+          Each archive contains both `taskrush` and `rush` binaries.
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  homebrew:
-    name: Update Homebrew Formula
-    runs-on: ubuntu-latest
-    needs: publish-crates
-    steps:
-    - name: Extract version
-      id: version
-      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-    - name: Update Homebrew formula
-      uses: mislav/bump-homebrew-formula-action@v3
-      with:
-        formula-name: taskrush
-        formula-path: Formula/taskrush.rb
-        homebrew-tap: iPeluwa/homebrew-tap
-        download-url: https://github.com/iPeluwa/rush/releases/download/v${{ steps.version.outputs.VERSION }}/rush-x86_64-apple-darwin.tar.gz
-        commit-message: |
-          taskrush ${{ steps.version.outputs.VERSION }}
-
-          Created by https://github.com/mislav/bump-homebrew-formula-action
-      env:
-        COMMITTER_TOKEN: ${{ secrets.GITHUB_TOKEN }}
