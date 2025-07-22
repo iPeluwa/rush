@@ -12,7 +12,12 @@ A modern task runner with parallel execution, intelligent caching, and smart dep
 
 ## Installation
 
-**From crates.io (recommended):**
+**NPM (recommended - works everywhere):**
+```bash
+npm install -g taskrush
+```
+
+**From crates.io:**
 ```bash
 cargo install taskrush
 ```

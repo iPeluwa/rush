@@ -1,0 +1,33 @@
+#!/usr/bin/env node
+
+const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+
+// Determine the binary name based on platform
+const isWindows = process.platform === 'win32';
+const binaryName = isWindows ? 'taskrush.exe' : 'taskrush';
+const binaryPath = path.join(__dirname, binaryName);
+
+// Check if binary exists
+if (!fs.existsSync(binaryPath)) {
+  console.error('❌ TaskRush binary not found!');
+  console.error('Try reinstalling: npm install -g taskrush');
+  process.exit(1);
+}
+
+// Forward all arguments to the binary
+const args = process.argv.slice(2);
+const child = spawn(binaryPath, args, {
+  stdio: 'inherit',
+  cwd: process.cwd()
+});
+
+child.on('close', (code) => {
+  process.exit(code);
+});
+
+child.on('error', (err) => {
+  console.error('❌ Failed to run TaskRush:', err.message);
+  process.exit(1);
+});

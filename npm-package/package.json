@@ -1,0 +1,52 @@
+{
+  "name": "taskrush",
+  "version": "0.2.0",
+  "description": "A modern task runner with parallel execution and intelligent caching",
+  "main": "index.js",
+  "bin": {
+    "taskrush": "./bin/taskrush",
+    "rush": "./bin/taskrush"
+  },
+  "scripts": {
+    "postinstall": "node install.js",
+    "test": "echo \"No tests for binary package\" && exit 0"
+  },
+  "keywords": [
+    "task-runner",
+    "build",
+    "automation",
+    "parallel",
+    "caching",
+    "cli",
+    "build-tool",
+    "task-management"
+  ],
+  "author": "Oluwapeluwa Ibrahim",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iPeluwa/rush.git"
+  },
+  "homepage": "https://github.com/iPeluwa/rush",
+  "bugs": {
+    "url": "https://github.com/iPeluwa/rush/issues"
+  },
+  "files": [
+    "install.js",
+    "index.js",
+    "bin/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ]
+}
