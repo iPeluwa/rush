@@ -1,0 +1,21 @@
+tasks:
+  install:
+    cmd: npm install
+    cache: [package.json, package-lock.json]
+    
+  build:
+    cmd: npm run build
+    deps: [install]
+    cache: [src/, package.json]
+    
+  test:
+    cmd: npm test
+    deps: [build]
+    
+  lint:
+    cmd: npm run lint
+    deps: [install]
+    
+  ci:
+    cmd: echo "CI complete"
+    deps: [test, lint]

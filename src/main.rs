@@ -1,8 +1,13 @@
+mod cache;
 mod config;
+mod executor;
+mod graph;
 
 use anyhow::Result;
 use clap::{Arg, Command};
 use config::RushConfig;
+use executor::TaskExecutor;
+use graph::TaskGraph;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -25,10 +30,16 @@ async fn main() -> Result<()> {
         .get_matches();
 
     let config = RushConfig::find_config()?;
+    let graph = TaskGraph::from(&config);
+    let executor = TaskExecutor::new(graph);
     
     if let Some(task_name) = matches.get_one::<String>("task") {
-        println!("Running task: {}", task_name);
-        // TODO: Execute specific task
+        let parallel = matches.get_flag("parallel");
+        if parallel {
+            executor.execute_task_parallel(task_name).await?;
+        } else {
+            executor.execute_task(task_name).await?;
+        }
     } else {
         println!("Available tasks:");
         for (name, task) in &config.tasks {

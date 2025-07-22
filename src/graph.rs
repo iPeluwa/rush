@@ -1,5 +1,5 @@
 use anyhow::{bail, Result};
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Debug, Clone)]
 pub struct TaskGraph {
@@ -38,23 +38,7 @@ impl TaskGraph {
         let mut temp_visited = HashSet::new();
 
         self.dfs_visit(start_task, &mut visited, &mut temp_visited, &mut stack)?;
-
-        // Add any unvisited dependencies
-        let mut queue = VecDeque::new();
-        queue.push_back(start_task.to_string());
-
-        while let Some(task) = queue.pop_front() {
-            if let Some(deps) = self.dependencies.get(&task) {
-                for dep in deps {
-                    if !visited.contains(dep) {
-                        self.dfs_visit(dep, &mut visited, &mut temp_visited, &mut stack)?;
-                    }
-                    queue.push_back(dep.clone());
-                }
-            }
-        }
-
-        stack.reverse();
+        
         Ok(stack)
     }
 
