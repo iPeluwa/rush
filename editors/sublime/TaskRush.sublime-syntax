@@ -1,0 +1,23 @@
+%YAML 1.2
+---
+# TaskRush syntax definition for Sublime Text
+# Save as TaskRush.sublime-syntax in Packages/User/
+name: TaskRush
+file_extensions:
+  - rush
+scope: source.rush
+
+extends: Packages/YAML/YAML.sublime-syntax
+
+contexts:
+  main:
+    - include: scope:source.yaml
+    - match: '^(tasks):'
+      captures:
+        1: keyword.control.tasks.rush
+    - match: '^\s{2}([a-zA-Z0-9_-]+):'
+      captures:
+        1: entity.name.function.task.rush
+    - match: '^\s{4}(cmd|description|depends_on|cache_files|env):'
+      captures:
+        1: keyword.other.property.rush

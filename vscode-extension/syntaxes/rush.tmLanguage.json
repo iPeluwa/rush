@@ -1,0 +1,104 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "TaskRush",
+  "patterns": [
+    {
+      "include": "#tasks"
+    },
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#yaml-content"
+    }
+  ],
+  "repository": {
+    "tasks": {
+      "patterns": [
+        {
+          "match": "^(tasks):",
+          "captures": {
+            "1": {
+              "name": "keyword.control.tasks.rush"
+            }
+          }
+        },
+        {
+          "match": "^\\s{2}([a-zA-Z0-9_-]+):",
+          "captures": {
+            "1": {
+              "name": "entity.name.function.task.rush"
+            }
+          }
+        },
+        {
+          "match": "^\\s{4}(cmd|description|depends_on|cache_files|env):",
+          "captures": {
+            "1": {
+              "name": "keyword.other.property.rush"
+            }
+          }
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.rush",
+          "match": "#.*$"
+        }
+      ]
+    },
+    "yaml-content": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.rush",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.rush",
+              "match": "\\\\."
+            },
+            {
+              "name": "variable.other.environment.rush",
+              "match": "\\$\\{[^}]+\\}"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.rush",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.rush",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.unquoted.rush",
+          "match": "[^\\s:]+(?=\\s*$|\\s*#)"
+        },
+        {
+          "name": "punctuation.definition.list.begin.rush",
+          "match": "-"
+        },
+        {
+          "name": "constant.numeric.rush",
+          "match": "\\b[0-9]+\\.?[0-9]*\\b"
+        },
+        {
+          "name": "constant.language.boolean.rush",
+          "match": "\\b(true|false|yes|no|on|off)\\b"
+        },
+        {
+          "name": "constant.language.null.rush",
+          "match": "\\b(null|~)\\b"
+        }
+      ]
+    }
+  },
+  "scopeName": "source.rush"
+}

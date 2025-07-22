@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaskRush Configuration",
+  "description": "Schema for TaskRush .rush configuration files",
+  "type": "object",
+  "properties": {
+    "tasks": {
+      "type": "object",
+      "description": "Definition of tasks to run",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "$ref": "#/definitions/task"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "required": ["tasks"],
+  "additionalProperties": false,
+  "definitions": {
+    "task": {
+      "type": "object",
+      "description": "A single task definition",
+      "properties": {
+        "cmd": {
+          "type": "string",
+          "description": "The command to execute for this task"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of what this task does"
+        },
+        "depends_on": {
+          "type": "array",
+          "description": "List of tasks that must complete before this task runs",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          },
+          "uniqueItems": true
+        },
+        "cache_files": {
+          "type": "array",
+          "description": "File patterns to check for caching this task",
+          "items": {
+            "type": "string"
+          }
+        },
+        "env": {
+          "type": "object",
+          "description": "Environment variables to set when running this task",
+          "patternProperties": {
+            "^[A-Z_][A-Z0-9_]*$": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "required": ["cmd"],
+      "additionalProperties": false
+    }
+  }
+}

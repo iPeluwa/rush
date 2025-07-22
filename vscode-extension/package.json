@@ -1,0 +1,84 @@
+{
+  "name": "taskrush-language-support",
+  "displayName": "TaskRush Language Support",
+  "description": "Language support for TaskRush .rush configuration files",
+  "version": "0.2.3",
+  "publisher": "taskrush",
+  "engines": {
+    "vscode": "^1.60.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Snippets"
+  ],
+  "keywords": [
+    "taskrush",
+    "rush",
+    "task-runner",
+    "yaml",
+    "build-tool"
+  ],
+  "activationEvents": [
+    "onLanguage:rush"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "rush",
+        "aliases": [
+          "TaskRush",
+          "rush"
+        ],
+        "extensions": [
+          ".rush"
+        ],
+        "configuration": "./language-configuration.json",
+        "icon": {
+          "light": "./icons/rush-file-light.svg",
+          "dark": "./icons/rush-file-dark.svg"
+        }
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rush",
+        "scopeName": "source.rush",
+        "path": "./syntaxes/rush.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "rush",
+        "path": "./snippets/rush.json"
+      }
+    ],
+    "jsonValidation": [
+      {
+        "fileMatch": "*.rush",
+        "url": "./schemas/rush-schema.json"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.60.0",
+    "@types/node": "16.x",
+    "typescript": "^4.9.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iPeluwa/rush.git",
+    "directory": "vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/iPeluwa/rush/issues"
+  },
+  "homepage": "https://github.com/iPeluwa/rush",
+  "license": "MIT"
+}

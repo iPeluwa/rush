@@ -1,0 +1,108 @@
+{
+  "Basic Task": {
+    "prefix": "task",
+    "body": [
+      "$1:",
+      "  cmd: $2",
+      "  description: $3"
+    ],
+    "description": "Create a basic task"
+  },
+  "Task with Dependencies": {
+    "prefix": "task-deps",
+    "body": [
+      "$1:",
+      "  cmd: $2",
+      "  description: $3",
+      "  depends_on:",
+      "    - $4"
+    ],
+    "description": "Create a task with dependencies"
+  },
+  "Task with Caching": {
+    "prefix": "task-cache",
+    "body": [
+      "$1:",
+      "  cmd: $2",
+      "  description: $3",
+      "  cache_files:",
+      "    - \"$4\""
+    ],
+    "description": "Create a task with file caching"
+  },
+  "Complete Task": {
+    "prefix": "task-full",
+    "body": [
+      "$1:",
+      "  cmd: $2",
+      "  description: $3",
+      "  depends_on:",
+      "    - $4",
+      "  cache_files:",
+      "    - \"$5\"",
+      "  env:",
+      "    $6: $7"
+    ],
+    "description": "Create a complete task with all properties"
+  },
+  "Environment Variable": {
+    "prefix": "env",
+    "body": [
+      "env:",
+      "  $1: $2"
+    ],
+    "description": "Add environment variables"
+  },
+  "Cache Files": {
+    "prefix": "cache",
+    "body": [
+      "cache_files:",
+      "  - \"$1\""
+    ],
+    "description": "Add cache files pattern"
+  },
+  "Dependencies": {
+    "prefix": "deps",
+    "body": [
+      "depends_on:",
+      "  - $1"
+    ],
+    "description": "Add task dependencies"
+  },
+  "Build Task": {
+    "prefix": "build",
+    "body": [
+      "build:",
+      "  cmd: npm run build",
+      "  description: Build the application",
+      "  cache_files:",
+      "    - \"src/**/*\"",
+      "    - \"package.json\""
+    ],
+    "description": "Common build task template"
+  },
+  "Test Task": {
+    "prefix": "test",
+    "body": [
+      "test:",
+      "  cmd: npm test",
+      "  description: Run tests",
+      "  depends_on:",
+      "    - build"
+    ],
+    "description": "Common test task template"
+  },
+  "CI Pipeline": {
+    "prefix": "ci",
+    "body": [
+      "ci:",
+      "  cmd: echo \"CI pipeline completed\"",
+      "  description: Run complete CI pipeline",
+      "  depends_on:",
+      "    - lint",
+      "    - test",
+      "    - build"
+    ],
+    "description": "CI pipeline task template"
+  }
+}
