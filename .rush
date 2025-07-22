@@ -36,3 +36,9 @@ tasks:
     cmd: echo "All CI tasks completed!"
     description: "Run complete CI pipeline"
     deps: [test, lint, fmt-check, docs, release-check]
+    
+  deploy:
+    cmd: echo "Deploying to ${DEPLOY_ENV:-development}..."
+    description: "Deploy application to environment"
+    env:
+      DEPLOY_ENV: "${DEPLOY_ENV:-staging}"

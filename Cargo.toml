@@ -1,6 +1,6 @@
 [package]
-name = "rush-build"
-version = "0.1.0"
+name = "taskrush"
+version = "0.2.0"
 edition = "2024"
 description = "A modern task runner with parallel execution and intelligent caching"
 license = "MIT"
@@ -18,9 +18,11 @@ sha2 = "0.10"
 anyhow = "1.0"
 futures = "0.3"
 indicatif = "0.17"
+notify = "6.0"
+regex = "1.0"
 
 [[bin]]
-name = "rush-build"
+name = "taskrush"
 path = "src/main.rs"
 
 [[bin]]

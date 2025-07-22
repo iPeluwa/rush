@@ -1,5 +1,9 @@
 use anyhow::Result;
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
+use std::path::Path;
 use std::process::Stdio;
+use std::sync::mpsc;
+use std::time::Duration;
 use tokio::process::Command;
 
 use crate::cache::TaskCache;
@@ -246,6 +250,69 @@ impl TaskExecutor {
             );
         }
 
+        Ok(())
+    }
+
+    pub async fn execute_task_with_watch(&self, task_name: &str, parallel: bool) -> Result<()> {
+        // Run once initially
+        println!("🚀 Initial run of task: {}", task_name);
+        if parallel {
+            self.execute_task_parallel(task_name).await?;
+        } else {
+            self.execute_task(task_name).await?;
+        }
+
+        println!("👀 Watching for file changes... (Press Ctrl+C to stop)");
+        
+        // Set up file watcher
+        let (tx, rx) = mpsc::channel();
+        let mut watcher: RecommendedWatcher = Watcher::new(
+            move |res: notify::Result<Event>| {
+                if let Ok(event) = res {
+                    let _ = tx.send(event);
+                }
+            },
+            notify::Config::default(),
+        )?;
+
+        // Watch current directory
+        watcher.watch(Path::new("."), RecursiveMode::Recursive)?;
+
+        // Watch loop
+        loop {
+            match rx.recv_timeout(Duration::from_millis(100)) {
+                Ok(_event) => {
+                    // Debounce: wait a bit for more changes
+                    std::thread::sleep(Duration::from_millis(200));
+                    
+                    // Drain any additional events
+                    while rx.try_recv().is_ok() {}
+                    
+                    println!("\n🔄 File change detected, re-running task: {}", task_name);
+                    
+                    // Clear cache to force rebuild
+                    let _ = std::fs::remove_dir_all(".rush-cache");
+                    
+                    if parallel {
+                        if let Err(e) = self.execute_task_parallel(task_name).await {
+                            eprintln!("❌ Task failed: {}", e);
+                        }
+                    } else if let Err(e) = self.execute_task(task_name).await {
+                        eprintln!("❌ Task failed: {}", e);
+                    }
+                    
+                    println!("👀 Watching for more changes...");
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    // No events, continue watching
+                    tokio::task::yield_now().await;
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    break;
+                }
+            }
+        }
+        
         Ok(())
     }
 }
