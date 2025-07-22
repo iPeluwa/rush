@@ -18,6 +18,8 @@ pub struct Task {
     pub cache: Vec<String>,
     #[serde(default)]
     pub env: HashMap<String, String>,
+    #[serde(default)]
+    pub description: Option<String>,
 }
 
 impl RushConfig {

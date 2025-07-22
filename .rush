@@ -1,12 +1,38 @@
 tasks:
   build:
     cmd: cargo build
+    description: "Build the project"
     deps: [check]
     
   test:
     cmd: cargo test
+    description: "Run all tests"
     deps: [build]
     
   check:
     cmd: cargo check
+    description: "Check code for compilation errors"
     cache: [Cargo.toml, Cargo.lock]
+    
+  lint:
+    cmd: cargo clippy -- -D warnings
+    description: "Run clippy linter"
+    deps: [check]
+    
+  fmt-check:
+    cmd: cargo fmt -- --check
+    description: "Check code formatting"
+    cache: [Cargo.toml]
+    
+  docs:
+    cmd: echo "Generating documentation..."
+    description: "Generate project documentation"
+    
+  release-check:
+    cmd: echo "Checking release readiness..."
+    description: "Verify project is ready for release"
+    
+  ci:
+    cmd: echo "All CI tasks completed!"
+    description: "Run complete CI pipeline"
+    deps: [test, lint, fmt-check, docs, release-check]

@@ -43,7 +43,10 @@ async fn main() -> Result<()> {
     } else {
         println!("Available tasks:");
         for (name, task) in &config.tasks {
-            println!("  {}: {}", name, task.cmd);
+            match &task.description {
+                Some(desc) => println!("  {}: {} ({})", name, desc, task.cmd),
+                None => println!("  {}: {}", name, task.cmd),
+            }
         }
     }
 
