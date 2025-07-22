@@ -28,6 +28,21 @@ Download from [GitHub releases](https://github.com/iPeluwa/rush/releases) for:
 - macOS (Intel, Apple Silicon)  
 - Windows (x86_64)
 
+**Package managers:**
+```bash
+# macOS (Homebrew)
+brew install iPeluwa/tap/rush-cli
+
+# Windows (Chocolatey) 
+choco install rush-cli
+
+# Arch Linux (AUR)
+yay -S rush-cli
+
+# Snap (Universal Linux)
+snap install rush-cli
+```
+
 **From source:**
 ```bash
 git clone https://github.com/iPeluwa/rush.git

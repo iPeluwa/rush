@@ -6,9 +6,22 @@ on:
       - 'v*'
 
 jobs:
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    - name: Publish to crates.io
+      run: cargo publish
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
   build:
     name: Build and Release
     runs-on: ${{ matrix.os }}
+    needs: publish-crates
     strategy:
       matrix:
         include:
@@ -60,3 +73,26 @@ jobs:
           rush-${{ matrix.target }}.*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  homebrew:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+    - name: Extract version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Update Homebrew formula
+      uses: mislav/bump-homebrew-formula-action@v3
+      with:
+        formula-name: rush-cli
+        formula-path: Formula/rush-cli.rb
+        homebrew-tap: iPeluwa/homebrew-tap
+        download-url: https://github.com/iPeluwa/rush/releases/download/v${{ steps.version.outputs.VERSION }}/rush-x86_64-apple-darwin.tar.gz
+        commit-message: |
+          rush-cli ${{ steps.version.outputs.VERSION }}
+
+          Created by https://github.com/mislav/bump-homebrew-formula-action
+      env:
+        COMMITTER_TOKEN: ${{ secrets.GITHUB_TOKEN }}

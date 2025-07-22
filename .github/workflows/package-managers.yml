@@ -1,0 +1,138 @@
+name: Package Managers
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  chocolatey:
+    name: Update Chocolatey Package
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Extract version
+      id: version
+      shell: powershell
+      run: |
+        $version = "${{ github.event.release.tag_name }}" -replace "^v", ""
+        echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
+    - name: Create Chocolatey package
+      shell: powershell
+      run: |
+        $version = "${{ steps.version.outputs.VERSION }}"
+        $url64 = "https://github.com/iPeluwa/rush/releases/download/v$version/rush-x86_64-pc-windows-msvc.zip"
+        
+        # Create chocolatey directory structure
+        New-Item -ItemType Directory -Force -Path chocolatey/tools
+        
+        # Create chocolateyinstall.ps1
+        @"
+        `$ErrorActionPreference = 'Stop'
+        `$toolsDir = Split-Path `$MyInvocation.MyCommand.Definition
+        `$url64 = '$url64'
+        
+        `$packageArgs = @{
+          packageName   = 'rush-cli'
+          unzipLocation = `$toolsDir
+          url64bit      = `$url64
+          checksum64    = 'REPLACE_WITH_CHECKSUM'
+          checksumType64= 'sha256'
+        }
+        
+        Install-ChocolateyZipPackage @packageArgs
+        "@ | Out-File -FilePath chocolatey/tools/chocolateyinstall.ps1
+        
+        # Create nuspec file
+        @"
+        <?xml version="1.0" encoding="utf-8"?>
+        <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+          <metadata>
+            <id>rush-cli</id>
+            <version>$version</version>
+            <packageSourceUrl>https://github.com/iPeluwa/rush</packageSourceUrl>
+            <owners>iPeluwa</owners>
+            <title>Rush CLI</title>
+            <authors>Oluwapeluwa Ibrahim</authors>
+            <projectUrl>https://github.com/iPeluwa/rush</projectUrl>
+            <license type="expression">MIT</license>
+            <requireLicenseAcceptance>false</requireLicenseAcceptance>
+            <description>A modern task runner with parallel execution and intelligent caching</description>
+            <summary>Modern task runner - Like make but with parallel execution, caching, and better dependency management</summary>
+            <releaseNotes>https://github.com/iPeluwa/rush/releases/tag/v$version</releaseNotes>
+            <tags>task-runner build automation parallel caching cli</tags>
+          </metadata>
+          <files>
+            <file src="tools/**" target="tools" />
+          </files>
+        </package>
+        "@ | Out-File -FilePath chocolatey/rush-cli.nuspec
+
+  aur:
+    name: Update AUR Package
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Extract version
+      id: version
+      run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+    - name: Create PKGBUILD
+      run: |
+        cat > PKGBUILD << 'EOF'
+        # Maintainer: Oluwapeluwa Ibrahim <email@example.com>
+        pkgname=rush-cli
+        pkgver=${{ steps.version.outputs.VERSION }}
+        pkgrel=1
+        pkgdesc="A modern task runner with parallel execution and intelligent caching"
+        arch=('x86_64')
+        url="https://github.com/iPeluwa/rush"
+        license=('MIT')
+        depends=()
+        makedepends=()
+        source=("$pkgname-$pkgver.tar.gz::https://github.com/iPeluwa/rush/releases/download/v$pkgver/rush-x86_64-unknown-linux-gnu.tar.gz")
+        sha256sums=('SKIP')  # Should be calculated manually
+
+        package() {
+            install -Dm755 "$srcdir/rush" "$pkgdir/usr/bin/rush"
+        }
+        EOF
+
+  snap:
+    name: Update Snap Package
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Create snapcraft.yaml
+      run: |
+        mkdir -p snap
+        cat > snap/snapcraft.yaml << 'EOF'
+        name: rush-cli
+        version: git
+        summary: A modern task runner with parallel execution and intelligent caching
+        description: |
+          Rush is a modern task runner that provides:
+          - Content-based caching (not just timestamps)
+          - True parallel execution by default
+          - Cross-platform without shell gotchas
+          - Intelligent dependency graphs
+          - Simple YAML configuration
+
+        grade: stable
+        confinement: strict
+        base: core22
+
+        apps:
+          rush-cli:
+            command: bin/rush
+            plugs: [home, network]
+
+        parts:
+          rush:
+            plugin: rust
+            source: .
+            rust-channel: stable
+        EOF
