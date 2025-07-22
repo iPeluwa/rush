@@ -1,6 +1,6 @@
 {
   "name": "taskrush",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "A modern task runner with parallel execution and intelligent caching",
   "main": "index.js",
   "bin": {
