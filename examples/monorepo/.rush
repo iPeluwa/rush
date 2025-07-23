@@ -1,0 +1,326 @@
+# TaskRush configuration for monorepo
+# This example shows how to manage multiple packages in a single repository
+
+tasks:
+  # Root level dependency management
+  install-root:
+    cmd: npm install
+    description: Install root dependencies and setup workspaces
+    cache_files:
+      - package.json
+      - package-lock.json
+
+  # Shared library package
+  shared-install:
+    cmd: npm install --workspace=packages/shared
+    description: Install shared library dependencies
+    cache_files:
+      - "packages/shared/package.json"
+    depends_on: [install-root]
+
+  shared-build:
+    cmd: npm run build --workspace=packages/shared
+    description: Build shared library
+    cache_files:
+      - "packages/shared/src/**/*"
+      - "packages/shared/package.json"
+      - "packages/shared/tsconfig.json"
+    depends_on: [shared-install]
+
+  shared-test:
+    cmd: npm test --workspace=packages/shared
+    description: Test shared library
+    cache_files:
+      - "packages/shared/src/**/*"
+      - "packages/shared/test/**/*"
+    depends_on: [shared-build]
+
+  shared-lint:
+    cmd: npm run lint --workspace=packages/shared
+    description: Lint shared library
+    cache_files:
+      - "packages/shared/src/**/*.{ts,js}"
+      - "packages/shared/.eslintrc.json"
+    depends_on: [shared-install]
+
+  # Frontend web application
+  web-install:
+    cmd: npm install --workspace=packages/web
+    description: Install web app dependencies
+    cache_files:
+      - "packages/web/package.json"
+    depends_on: [install-root]
+
+  web-build:
+    cmd: npm run build --workspace=packages/web
+    description: Build web application
+    cache_files:
+      - "packages/web/src/**/*"
+      - "packages/web/public/**/*"
+      - "packages/web/package.json"
+      - "packages/web/webpack.config.js"
+    depends_on: [web-install, shared-build]
+
+  web-test:
+    cmd: npm test --workspace=packages/web
+    description: Test web application
+    cache_files:
+      - "packages/web/src/**/*"
+      - "packages/web/test/**/*"
+    depends_on: [web-install, shared-build]
+
+  web-lint:
+    cmd: npm run lint --workspace=packages/web
+    description: Lint web application
+    cache_files:
+      - "packages/web/src/**/*.{ts,tsx,js,jsx}"
+      - "packages/web/.eslintrc.json"
+    depends_on: [web-install]
+
+  web-dev:
+    cmd: npm run dev --workspace=packages/web
+    description: Start web development server
+    depends_on: [web-install, shared-build]
+
+  # Backend API service
+  api-install:
+    cmd: npm install --workspace=packages/api
+    description: Install API dependencies
+    cache_files:
+      - "packages/api/package.json"
+    depends_on: [install-root]
+
+  api-build:
+    cmd: npm run build --workspace=packages/api
+    description: Build API service
+    cache_files:
+      - "packages/api/src/**/*"
+      - "packages/api/package.json"
+      - "packages/api/tsconfig.json"
+    depends_on: [api-install, shared-build]
+
+  api-test:
+    cmd: npm test --workspace=packages/api
+    description: Test API service
+    cache_files:
+      - "packages/api/src/**/*"
+      - "packages/api/test/**/*"
+    depends_on: [api-install, shared-build]
+
+  api-lint:
+    cmd: npm run lint --workspace=packages/api
+    description: Lint API service
+    cache_files:
+      - "packages/api/src/**/*.{ts,js}"
+      - "packages/api/.eslintrc.json"
+    depends_on: [api-install]
+
+  api-dev:
+    cmd: npm run dev --workspace=packages/api
+    description: Start API development server
+    depends_on: [api-install, shared-build]
+
+  # Mobile application
+  mobile-install:
+    cmd: npm install --workspace=packages/mobile
+    description: Install mobile app dependencies
+    cache_files:
+      - "packages/mobile/package.json"
+    depends_on: [install-root]
+
+  mobile-build:
+    cmd: npm run build --workspace=packages/mobile
+    description: Build mobile application
+    cache_files:
+      - "packages/mobile/src/**/*"
+      - "packages/mobile/package.json"
+    depends_on: [mobile-install, shared-build]
+
+  mobile-test:
+    cmd: npm test --workspace=packages/mobile
+    description: Test mobile application
+    cache_files:
+      - "packages/mobile/src/**/*"
+      - "packages/mobile/__tests__/**/*"
+    depends_on: [mobile-install, shared-build]
+
+  mobile-lint:
+    cmd: npm run lint --workspace=packages/mobile
+    description: Lint mobile application
+    cache_files:
+      - "packages/mobile/src/**/*.{ts,tsx,js,jsx}"
+      - "packages/mobile/.eslintrc.json"
+    depends_on: [mobile-install]
+
+  mobile-ios:
+    cmd: npm run ios --workspace=packages/mobile
+    description: Run mobile app on iOS simulator
+    depends_on: [mobile-build]
+
+  mobile-android:
+    cmd: npm run android --workspace=packages/mobile
+    description: Run mobile app on Android emulator
+    depends_on: [mobile-build]
+
+  # Documentation site
+  docs-install:
+    cmd: npm install --workspace=packages/docs
+    description: Install documentation dependencies
+    cache_files:
+      - "packages/docs/package.json"
+    depends_on: [install-root]
+
+  docs-build:
+    cmd: npm run build --workspace=packages/docs
+    description: Build documentation site
+    cache_files:
+      - "packages/docs/docs/**/*"
+      - "packages/docs/docusaurus.config.js"
+    depends_on: [docs-install]
+
+  docs-dev:
+    cmd: npm run dev --workspace=packages/docs
+    description: Start documentation development server
+    depends_on: [docs-install]
+
+  # Cross-package operations
+  install-all:
+    cmd: echo "All packages dependencies installed ✅"
+    description: Install dependencies for all packages
+    depends_on: [shared-install, web-install, api-install, mobile-install, docs-install]
+
+  build-all:
+    cmd: echo "All packages built successfully ✅"
+    description: Build all packages in correct order
+    depends_on: [shared-build, web-build, api-build, mobile-build, docs-build]
+
+  test-all:
+    cmd: echo "All tests passed ✅"
+    description: Run tests for all packages
+    depends_on: [shared-test, web-test, api-test, mobile-test]
+
+  lint-all:
+    cmd: echo "All linting passed ✅"
+    description: Lint all packages
+    depends_on: [shared-lint, web-lint, api-lint, mobile-lint]
+
+  # Development workflow
+  dev-full:
+    cmd: |
+      echo "Starting all development servers..."
+      npm run dev --workspace=packages/web &
+      npm run dev --workspace=packages/api &
+      npm run dev --workspace=packages/docs &
+      wait
+    description: Start all development servers
+    depends_on: [build-all]
+
+  # Version management
+  version-patch:
+    cmd: npm version patch --workspaces
+    description: Bump patch version for all packages
+
+  version-minor:
+    cmd: npm version minor --workspaces
+    description: Bump minor version for all packages
+
+  version-major:
+    cmd: npm version major --workspaces
+    description: Bump major version for all packages
+
+  # Publishing
+  publish-shared:
+    cmd: npm publish --workspace=packages/shared
+    description: Publish shared library to npm
+    depends_on: [shared-test, shared-lint]
+
+  # Utility tasks
+  clean:
+    cmd: |
+      rm -rf packages/*/dist
+      rm -rf packages/*/build
+      rm -rf packages/*/node_modules
+      rm -rf node_modules
+    description: Clean all build artifacts and node_modules
+
+  clean-cache:
+    cmd: npm cache clean --force
+    description: Clean npm cache
+
+  reset:
+    cmd: echo "Monorepo reset completed ✅"
+    description: Clean everything and reinstall
+    depends_on: [clean, install-all]
+
+  # Dependency analysis
+  deps-check:
+    cmd: npm audit --workspaces
+    description: Check all packages for security vulnerabilities
+
+  deps-update:
+    cmd: npm update --workspaces
+    description: Update dependencies in all packages
+
+  deps-outdated:
+    cmd: npm outdated --workspaces
+    description: Check for outdated dependencies
+
+  # Git and CI/CD workflow
+  pre-commit:
+    cmd: echo "Pre-commit checks passed ✅"
+    description: Run pre-commit checks for all packages
+    depends_on: [lint-all, test-all]
+
+  ci:
+    cmd: echo "CI pipeline completed successfully ✅"
+    description: Complete CI pipeline for all packages
+    depends_on: [install-all, lint-all, test-all, build-all, deps-check]
+
+  # Integration testing
+  test-integration:
+    cmd: npm run test:integration
+    description: Run cross-package integration tests
+    depends_on: [build-all]
+
+  test-e2e:
+    cmd: npm run test:e2e
+    description: Run end-to-end tests across the full stack
+    depends_on: [build-all]
+
+  # Performance testing
+  test-performance:
+    cmd: npm run test:performance
+    description: Run performance tests
+    depends_on: [build-all]
+
+  # Docker operations
+  docker-build-all:
+    cmd: |
+      docker build -f packages/web/Dockerfile -t monorepo/web .
+      docker build -f packages/api/Dockerfile -t monorepo/api .
+    description: Build Docker images for all services
+    depends_on: [build-all]
+
+  docker-up:
+    cmd: docker-compose up -d
+    description: Start all services with Docker Compose
+    depends_on: [docker-build-all]
+
+  docker-down:
+    cmd: docker-compose down
+    description: Stop all Docker services
+
+  # Deployment
+  deploy-staging:
+    cmd: ./scripts/deploy.sh staging
+    description: Deploy all services to staging
+    depends_on: [ci, test-integration]
+    env:
+      ENVIRONMENT: staging
+
+  deploy-production:
+    cmd: ./scripts/deploy.sh production
+    description: Deploy all services to production
+    depends_on: [ci, test-e2e]
+    env:
+      ENVIRONMENT: production

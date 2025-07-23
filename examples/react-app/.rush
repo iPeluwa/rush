@@ -1,0 +1,146 @@
+# TaskRush configuration for React application
+# This example shows a complete frontend development workflow
+
+tasks:
+  # Dependency management
+  install:
+    cmd: npm ci
+    description: Install dependencies (clean install for CI/CD)
+    cache_files:
+      - package.json
+      - package-lock.json
+
+  # Development server
+  dev:
+    cmd: npm run dev
+    description: Start development server with hot reload
+    depends_on: [install]
+
+  # Code quality and linting
+  lint:
+    cmd: npm run lint
+    description: Run ESLint for code quality checks
+    cache_files:
+      - "src/**/*.{ts,tsx,js,jsx}"
+      - ".eslintrc.json"
+      - "tsconfig.json"
+    depends_on: [install]
+
+  lint-fix:
+    cmd: npm run lint:fix
+    description: Auto-fix linting issues
+    cache_files:
+      - "src/**/*.{ts,tsx,js,jsx}"
+    depends_on: [install]
+
+  # Code formatting
+  format:
+    cmd: npm run format
+    description: Format code with Prettier
+    cache_files:
+      - "src/**/*.{ts,tsx,js,jsx,css,scss,json,md}"
+      - ".prettierrc"
+    depends_on: [install]
+
+  format-check:
+    cmd: npm run format:check
+    description: Check if code is properly formatted
+    cache_files:
+      - "src/**/*.{ts,tsx,js,jsx,css,scss,json,md}"
+    depends_on: [install]
+
+  # Type checking
+  type-check:
+    cmd: npm run type-check
+    description: Run TypeScript type checking
+    cache_files:
+      - "src/**/*.{ts,tsx}"
+      - "tsconfig.json"
+    depends_on: [install]
+
+  # Testing
+  test:
+    cmd: npm test -- --watchAll=false
+    description: Run unit tests with Jest
+    cache_files:
+      - "src/**/*.{ts,tsx}"
+      - "src/**/*.test.{ts,tsx}"
+      - "jest.config.js"
+    depends_on: [install]
+
+  test-coverage:
+    cmd: npm run test:coverage
+    description: Run tests with coverage report
+    cache_files:
+      - "src/**/*.{ts,tsx}"
+      - "src/**/*.test.{ts,tsx}"
+    depends_on: [install]
+
+  test-watch:
+    cmd: npm test
+    description: Run tests in watch mode
+    depends_on: [install]
+
+  # End-to-end testing
+  test-e2e:
+    cmd: npm run test:e2e
+    description: Run end-to-end tests with Cypress
+    depends_on: [build]
+
+  # Building
+  build:
+    cmd: npm run build
+    description: Build optimized production bundle
+    cache_files:
+      - "src/**/*"
+      - "public/**/*"
+      - "package.json"
+      - "webpack.config.js"
+      - "tsconfig.json"
+    depends_on: [install, lint, type-check, test]
+
+  # Bundle analysis
+  analyze:
+    cmd: npm run analyze
+    description: Analyze bundle size and dependencies
+    depends_on: [build]
+
+  # Security
+  audit:
+    cmd: npm audit --audit-level=moderate
+    description: Check for security vulnerabilities
+    depends_on: [install]
+
+  # Deployment preparation
+  preview:
+    cmd: npm run preview
+    description: Preview production build locally
+    depends_on: [build]
+
+  # Utility tasks
+  clean:
+    cmd: rm -rf dist build node_modules/.cache
+    description: Clean build artifacts and cache
+
+  reset:
+    cmd: echo "Project reset completed"
+    description: Clean everything and reinstall
+    depends_on: [clean, install]
+
+  # Workflow tasks
+  pre-commit:
+    cmd: echo "Pre-commit checks passed ✅"
+    description: Run all pre-commit checks
+    depends_on: [format-check, lint, type-check, test]
+
+  ci:
+    cmd: echo "CI pipeline completed successfully ✅"
+    description: Complete CI pipeline for pull requests
+    depends_on: [format-check, lint, type-check, test-coverage, build, audit]
+
+  deploy:
+    cmd: npm run deploy
+    description: Deploy to production
+    depends_on: [ci]
+    env:
+      NODE_ENV: production

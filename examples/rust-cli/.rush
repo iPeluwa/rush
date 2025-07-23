@@ -1,0 +1,223 @@
+# TaskRush configuration for Rust CLI application
+# This example shows a complete Rust development workflow
+
+tasks:
+  # Fast development checks
+  check:
+    cmd: cargo check
+    description: Fast syntax and type checking
+    cache_files:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+  check-all:
+    cmd: cargo check --all-targets --all-features
+    description: Check all targets and features
+    cache_files:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+      - "examples/**/*.rs"
+      - "Cargo.toml"
+
+  # Code formatting
+  fmt:
+    cmd: cargo fmt --all
+    description: Format code with rustfmt
+    cache_files:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+
+  fmt-check:
+    cmd: cargo fmt --all -- --check
+    description: Check if code is properly formatted
+    cache_files:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+
+  # Linting
+  clippy:
+    cmd: cargo clippy --all-targets --all-features -- -D warnings
+    description: Run Clippy linter with strict warnings
+    cache_files:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+      - "Cargo.toml"
+    depends_on: [check]
+
+  clippy-fix:
+    cmd: cargo clippy --fix --all-targets --all-features
+    description: Auto-fix Clippy suggestions
+    depends_on: [check]
+
+  # Testing
+  test:
+    cmd: cargo test
+    description: Run unit and integration tests
+    cache_files:
+      - "src/**/*.rs"
+      - "tests/**/*.rs"
+      - "Cargo.toml"
+    depends_on: [check]
+
+  test-verbose:
+    cmd: cargo test -- --nocapture
+    description: Run tests with verbose output
+    depends_on: [check]
+
+  test-ignored:
+    cmd: cargo test -- --ignored
+    description: Run ignored tests
+    depends_on: [check]
+
+  test-doc:
+    cmd: cargo test --doc
+    description: Run documentation tests
+    cache_files:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+    depends_on: [check]
+
+  # Benchmarking
+  bench:
+    cmd: cargo bench
+    description: Run performance benchmarks
+    cache_files:
+      - "src/**/*.rs"
+      - "benches/**/*.rs"
+      - "Cargo.toml"
+    depends_on: [check]
+
+  # Building
+  build:
+    cmd: cargo build
+    description: Build debug binary
+    cache_files:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+    depends_on: [fmt-check, clippy, test]
+
+  build-release:
+    cmd: cargo build --release
+    description: Build optimized release binary
+    cache_files:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+      - "Cargo.lock"
+    depends_on: [fmt-check, clippy, test, test-doc]
+
+  build-all:
+    cmd: cargo build --all-targets
+    description: Build all targets (bins, examples, tests, benches)
+    depends_on: [check-all]
+
+  # Documentation
+  docs:
+    cmd: cargo doc --no-deps
+    description: Generate documentation
+    cache_files:
+      - "src/**/*.rs"
+      - "Cargo.toml"
+    depends_on: [check]
+
+  docs-open:
+    cmd: cargo doc --no-deps --open
+    description: Generate and open documentation
+    depends_on: [docs]
+
+  # Examples
+  run-example:
+    cmd: cargo run --example ${EXAMPLE:-main}
+    description: Run an example (set EXAMPLE env var)
+    depends_on: [build]
+
+  # Security and audit
+  audit:
+    cmd: cargo audit
+    description: Security audit of dependencies
+    cache_files:
+      - "Cargo.toml"
+      - "Cargo.lock"
+
+  # Dependencies
+  update:
+    cmd: cargo update
+    description: Update dependencies to latest versions
+
+  outdated:
+    cmd: cargo outdated
+    description: Check for outdated dependencies
+
+  # Utility tasks
+  clean:
+    cmd: cargo clean
+    description: Remove build artifacts
+
+  clean-cache:
+    cmd: rm -rf ~/.cargo/registry/cache
+    description: Clean cargo cache
+
+  # Installation and packaging
+  install:
+    cmd: cargo install --path .
+    description: Install binary locally
+    depends_on: [build-release]
+
+  package:
+    cmd: cargo package
+    description: Create a distributable package
+    depends_on: [build-release, test-doc]
+
+  publish-dry:
+    cmd: cargo publish --dry-run
+    description: Dry run of publishing to crates.io
+    depends_on: [package]
+
+  publish:
+    cmd: cargo publish
+    description: Publish to crates.io
+    depends_on: [ci, publish-dry]
+
+  # Cross-compilation
+  build-linux:
+    cmd: cargo build --release --target x86_64-unknown-linux-gnu
+    description: Build for Linux x86_64
+    depends_on: [ci]
+
+  build-windows:
+    cmd: cargo build --release --target x86_64-pc-windows-gnu
+    description: Build for Windows x86_64
+    depends_on: [ci]
+
+  build-macos:
+    cmd: cargo build --release --target x86_64-apple-darwin
+    description: Build for macOS x86_64
+    depends_on: [ci]
+
+  # Workflow tasks
+  pre-commit:
+    cmd: echo "Pre-commit checks passed ✅"
+    description: Quick checks before committing
+    depends_on: [fmt-check, clippy, test]
+
+  ci:
+    cmd: echo "CI pipeline completed successfully ✅"
+    description: Complete CI pipeline
+    depends_on: [fmt-check, clippy, test, test-doc, build-release, audit]
+
+  # Development workflow
+  dev:
+    cmd: cargo run
+    description: Run the application in development mode
+    depends_on: [build]
+
+  dev-watch:
+    cmd: cargo watch -x run
+    description: Auto-rebuild and run on file changes
+    depends_on: [check]
+
+  test-watch:
+    cmd: cargo watch -x test
+    description: Auto-run tests on file changes
+    depends_on: [check]

@@ -1,0 +1,276 @@
+# TaskRush configuration for Python API application
+# This example shows a complete Python web API development workflow
+
+tasks:
+  # Virtual environment and dependencies
+  venv:
+    cmd: python -m venv venv
+    description: Create virtual environment
+    cache_files:
+      - requirements.txt
+
+  install:
+    cmd: pip install -r requirements.txt
+    description: Install production dependencies
+    cache_files:
+      - requirements.txt
+    depends_on: [venv]
+
+  install-dev:
+    cmd: pip install -r requirements-dev.txt
+    description: Install development dependencies
+    cache_files:
+      - requirements-dev.txt
+    depends_on: [install]
+
+  freeze:
+    cmd: pip freeze > requirements-lock.txt
+    description: Lock current dependency versions
+    depends_on: [install-dev]
+
+  # Code formatting
+  format:
+    cmd: black src tests
+    description: Format code with Black
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - "pyproject.toml"
+    depends_on: [install-dev]
+
+  format-check:
+    cmd: black src tests --check
+    description: Check if code is properly formatted
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    depends_on: [install-dev]
+
+  # Import sorting
+  isort:
+    cmd: isort src tests
+    description: Sort imports with isort
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - ".isort.cfg"
+    depends_on: [install-dev]
+
+  isort-check:
+    cmd: isort src tests --check-only
+    description: Check if imports are properly sorted
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    depends_on: [install-dev]
+
+  # Linting
+  lint:
+    cmd: flake8 src tests
+    description: Run flake8 linting
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - "setup.cfg"
+      - ".flake8"
+    depends_on: [install-dev]
+
+  pylint:
+    cmd: pylint src
+    description: Run pylint for detailed code analysis
+    cache_files:
+      - "src/**/*.py"
+      - ".pylintrc"
+    depends_on: [install-dev]
+
+  # Type checking
+  type-check:
+    cmd: mypy src
+    description: Run type checking with mypy
+    cache_files:
+      - "src/**/*.py"
+      - "mypy.ini"
+      - "py.typed"
+    depends_on: [install-dev]
+
+  # Testing
+  test:
+    cmd: pytest tests/ -v
+    description: Run unit tests with pytest
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+      - "pytest.ini"
+      - "pyproject.toml"
+    depends_on: [install-dev]
+
+  test-coverage:
+    cmd: pytest tests/ --cov=src --cov-report=html --cov-report=term
+    description: Run tests with coverage report
+    cache_files:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    depends_on: [install-dev]
+
+  test-integration:
+    cmd: pytest tests/integration/ -v --tb=short
+    description: Run integration tests
+    cache_files:
+      - "src/**/*.py"
+      - "tests/integration/**/*.py"
+    depends_on: [install-dev]
+
+  test-performance:
+    cmd: pytest tests/performance/ -v --benchmark-only
+    description: Run performance benchmarks
+    depends_on: [install-dev]
+
+  # Security and vulnerability scanning
+  security:
+    cmd: bandit -r src/
+    description: Run security analysis with bandit
+    cache_files:
+      - "src/**/*.py"
+      - ".bandit"
+    depends_on: [install-dev]
+
+  safety:
+    cmd: safety check
+    description: Check dependencies for known vulnerabilities
+    cache_files:
+      - requirements.txt
+      - requirements-dev.txt
+    depends_on: [install-dev]
+
+  # Database operations
+  db-upgrade:
+    cmd: alembic upgrade head
+    description: Run database migrations
+    depends_on: [install]
+    env:
+      DATABASE_URL: ${DATABASE_URL:-sqlite:///./test.db}
+
+  db-downgrade:
+    cmd: alembic downgrade -1
+    description: Rollback last database migration
+    depends_on: [install]
+
+  db-migrate:
+    cmd: alembic revision --autogenerate -m "${MESSAGE:-Auto migration}"
+    description: Generate new database migration
+    depends_on: [install]
+
+  db-reset:
+    cmd: |
+      rm -f test.db
+      alembic upgrade head
+    description: Reset test database
+    depends_on: [install]
+
+  # Development server
+  dev:
+    cmd: uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+    description: Start development server with auto-reload
+    depends_on: [install, db-upgrade]
+    env:
+      ENVIRONMENT: development
+
+  dev-debug:
+    cmd: uvicorn src.main:app --reload --host 0.0.0.0 --port 8000 --log-level debug
+    description: Start development server with debug logging
+    depends_on: [install, db-upgrade]
+
+  # Production server
+  start:
+    cmd: gunicorn src.main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
+    description: Start production server
+    depends_on: [install, db-upgrade]
+    env:
+      ENVIRONMENT: production
+
+  # API documentation
+  docs:
+    cmd: python -c "import webbrowser; webbrowser.open('http://localhost:8000/docs')"
+    description: Open API documentation in browser
+    depends_on: [dev]
+
+  # Docker operations
+  docker-build:
+    cmd: docker build -t python-api:latest .
+    description: Build Docker image
+    cache_files:
+      - Dockerfile
+      - requirements.txt
+      - "src/**/*.py"
+
+  docker-run:
+    cmd: docker run -p 8000:8000 -e DATABASE_URL=sqlite:///./app.db python-api:latest
+    description: Run application in Docker container
+    depends_on: [docker-build]
+
+  # Deployment preparation
+  build-dist:
+    cmd: python -m build
+    description: Build distribution packages
+    cache_files:
+      - "src/**/*.py"
+      - "pyproject.toml"
+      - "setup.py"
+    depends_on: [install-dev]
+
+  # Utility tasks
+  clean:
+    cmd: |
+      rm -rf build/
+      rm -rf dist/
+      rm -rf src/*.egg-info/
+      find . -name __pycache__ -exec rm -rf {} +
+      find . -name "*.pyc" -delete
+    description: Clean build artifacts and cache
+
+  clean-venv:
+    cmd: rm -rf venv/
+    description: Remove virtual environment
+
+  reset:
+    cmd: echo "Project reset completed"
+    description: Clean everything and reinstall
+    depends_on: [clean, clean-venv, venv, install-dev]
+
+  # Code quality workflow
+  format-all:
+    cmd: echo "Code formatting completed ✅"
+    description: Run all formatters
+    depends_on: [isort, format]
+
+  pre-commit:
+    cmd: echo "Pre-commit checks passed ✅"
+    description: Quick checks before committing
+    depends_on: [format-check, isort-check, lint, type-check, test]
+
+  ci:
+    cmd: echo "CI pipeline completed successfully ✅"
+    description: Complete CI pipeline
+    depends_on: [format-check, isort-check, lint, type-check, test-coverage, security, safety]
+
+  # Performance and monitoring
+  profile:
+    cmd: python -m cProfile -o profile.stats src/main.py
+    description: Profile application performance
+    depends_on: [install-dev]
+
+  memory-profile:
+    cmd: mprof run python src/main.py
+    description: Profile memory usage
+    depends_on: [install-dev]
+
+  # API testing
+  test-api:
+    cmd: pytest tests/api/ -v --tb=short
+    description: Run API endpoint tests
+    depends_on: [install-dev, db-upgrade]
+
+  load-test:
+    cmd: locust -f tests/load_test.py --host=http://localhost:8000
+    description: Run load tests with Locust
+    depends_on: [install-dev]
