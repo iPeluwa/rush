@@ -193,11 +193,12 @@ impl TaskExecutor {
                 ));
             }
 
-            // Mark ready tasks as completed and remove from remaining
-            for task in &ready_tasks {
+            let ready_set: HashSet<_> = ready_tasks.iter().cloned().collect();
+
+            for task in &ready_set {
                 completed.insert(task.clone());
             }
-            remaining.retain(|task| !ready_tasks.contains(task));
+            remaining.retain(|task| !ready_set.contains(task));
 
             levels.push(ready_tasks);
         }
@@ -206,68 +207,25 @@ impl TaskExecutor {
     }
 
     async fn run_single_task(&self, task: &Task) -> Result<()> {
-        let mut cached_hash: Option<String> = None;
-        if !task.cache_files.is_empty() {
-            let hash = self
-                .cache
-                .compute_task_hash(
-                    &task.name,
-                    &task.cmd,
-                    &task.env,
-                    &task.deps,
-                    &task.cache_files,
-                )
-                .await?;
-            if self.cache.is_cached(&task.name, &hash).await? {
-                println!("⚡ Task '{}' skipped (cached)", task.name);
-                return Ok(());
-            }
-            cached_hash = Some(hash);
-        }
-
-        println!("🏃 Running task: {}", task.name);
-
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut cmd = Command::new("cmd");
-            cmd.args(["/C", &task.cmd]);
-            cmd
-        } else {
-            let mut cmd = Command::new("sh");
-            cmd.args(["-c", &task.cmd]);
-            cmd
-        };
-
-        // Set environment variables
-        for (key, value) in &task.env {
-            cmd.env(key, value);
-        }
-
-        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-        let output = cmd.output().await?;
-
-        if output.status.success() {
-            println!("✅ Task '{}' completed successfully", task.name);
-            if !output.stdout.is_empty() {
-                println!("{}", String::from_utf8_lossy(&output.stdout));
-            }
-
-            if let Some(hash) = cached_hash {
-                self.cache.mark_cached(&task.name, &hash).await?;
-            }
-        } else {
-            println!("❌ Task '{}' failed", task.name);
-            if !output.stderr.is_empty() {
-                eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-            }
-            anyhow::bail!(
-                "Task '{}' failed with exit code: {:?}",
-                task.name,
-                output.status.code()
-            );
-        }
-
-        Ok(())
+        Self::run_task_with_handlers(
+            &self.cache,
+            task,
+            |task| println!("⚡ Task '{}' skipped (cached)", task.name),
+            |task| println!("🏃 Running task: {}", task.name),
+            |task, output, _elapsed| {
+                println!("✅ Task '{}' completed successfully", task.name);
+                if !output.stdout.is_empty() {
+                    println!("{}", String::from_utf8_lossy(&output.stdout));
+                }
+            },
+            |task, output| {
+                println!("❌ Task '{}' failed", task.name);
+                if !output.stderr.is_empty() {
+                    eprintln!("{}", String::from_utf8_lossy(&output.stderr));
+                }
+            },
+        )
+        .await
     }
 
     pub async fn execute_task_with_watch(&self, task_name: &str, parallel: bool) -> Result<()> {
@@ -365,72 +323,26 @@ impl TaskExecutor {
         task: &Task,
         progress: &ProgressBar,
     ) -> Result<()> {
-        let start_time = Instant::now();
-
-        let mut cached_hash: Option<String> = None;
-        if !task.cache_files.is_empty() {
-            let hash = self
-                .cache
-                .compute_task_hash(
-                    &task.name,
-                    &task.cmd,
-                    &task.env,
-                    &task.deps,
-                    &task.cache_files,
-                )
-                .await?;
-            if self.cache.is_cached(&task.name, &hash).await? {
-                progress.set_message(format!("⚡ {} (cached)", task.name));
-                return Ok(());
-            }
-            cached_hash = Some(hash);
-        }
-
-        progress.set_message(format!("🏃 Running {}", task.name));
-
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut cmd = Command::new("cmd");
-            cmd.args(["/C", &task.cmd]);
-            cmd
-        } else {
-            let mut cmd = Command::new("sh");
-            cmd.args(["-c", &task.cmd]);
-            cmd
-        };
-
-        // Set environment variables
-        for (key, value) in &task.env {
-            cmd.env(key, value);
-        }
-
-        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-        let output = cmd.output().await?;
-        let elapsed = start_time.elapsed();
-
-        if output.status.success() {
-            progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
-
-            if let Some(hash) = cached_hash {
-                self.cache.mark_cached(&task.name, &hash).await?;
-            }
-        } else {
-            progress.set_message(format!("❌ {} failed", task.name));
-            if !output.stderr.is_empty() {
-                eprintln!(
-                    "Error output for {}:\n{}",
-                    task.name,
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-            anyhow::bail!(
-                "Task '{}' failed with exit code: {:?}",
-                task.name,
-                output.status.code()
-            );
-        }
-
-        Ok(())
+        Self::run_task_with_handlers(
+            &self.cache,
+            task,
+            |task| progress.set_message(format!("⚡ {} (cached)", task.name)),
+            |task| progress.set_message(format!("🏃 Running {}", task.name)),
+            |task, _output, elapsed| {
+                progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
+            },
+            |task, output| {
+                progress.set_message(format!("❌ {} failed", task.name));
+                if !output.stderr.is_empty() {
+                    eprintln!(
+                        "Error output for {}:\n{}",
+                        task.name,
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+            },
+        )
+        .await
     }
 
     async fn run_task_standalone_with_progress(
@@ -438,71 +350,26 @@ impl TaskExecutor {
         cache: &TaskCache,
         progress: &ProgressBar,
     ) -> Result<()> {
-        let start_time = Instant::now();
-
-        let mut cached_hash: Option<String> = None;
-        if !task.cache_files.is_empty() {
-            let hash = cache
-                .compute_task_hash(
-                    &task.name,
-                    &task.cmd,
-                    &task.env,
-                    &task.deps,
-                    &task.cache_files,
-                )
-                .await?;
-            if cache.is_cached(&task.name, &hash).await? {
-                progress.set_message(format!("⚡ {} (cached)", task.name));
-                return Ok(());
-            }
-            cached_hash = Some(hash);
-        }
-
-        progress.set_message(format!("🏃 Running {}", task.name));
-
-        let mut cmd = if cfg!(target_os = "windows") {
-            let mut cmd = Command::new("cmd");
-            cmd.args(["/C", &task.cmd]);
-            cmd
-        } else {
-            let mut cmd = Command::new("sh");
-            cmd.args(["-c", &task.cmd]);
-            cmd
-        };
-
-        // Set environment variables
-        for (key, value) in &task.env {
-            cmd.env(key, value);
-        }
-
-        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-
-        let output = cmd.output().await?;
-        let elapsed = start_time.elapsed();
-
-        if output.status.success() {
-            progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
-
-            if let Some(hash) = cached_hash {
-                cache.mark_cached(&task.name, &hash).await?;
-            }
-        } else {
-            progress.set_message(format!("❌ {} failed", task.name));
-            if !output.stderr.is_empty() {
-                eprintln!(
-                    "Error output for {}:\n{}",
-                    task.name,
-                    String::from_utf8_lossy(&output.stderr)
-                );
-            }
-            anyhow::bail!(
-                "Task '{}' failed with exit code: {:?}",
-                task.name,
-                output.status.code()
-            );
-        }
-
-        Ok(())
+        Self::run_task_with_handlers(
+            cache,
+            task,
+            |task| progress.set_message(format!("⚡ {} (cached)", task.name)),
+            |task| progress.set_message(format!("🏃 Running {}", task.name)),
+            |task, _output, elapsed| {
+                progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
+            },
+            |task, output| {
+                progress.set_message(format!("❌ {} failed", task.name));
+                if !output.stderr.is_empty() {
+                    eprintln!(
+                        "Error output for {}:\n{}",
+                        task.name,
+                        String::from_utf8_lossy(&output.stderr)
+                    );
+                }
+            },
+        )
+        .await
     }
 
     fn normalize_to_workspace(&self, path: &Path) -> PathBuf {
@@ -549,5 +416,78 @@ impl TaskExecutor {
         }
 
         affected
+    }
+}
+
+impl TaskExecutor {
+    async fn run_task_with_handlers<FCacheHit, FStart, FSuccess, FFailure>(
+        cache: &TaskCache,
+        task: &Task,
+        mut on_cache_hit: FCacheHit,
+        mut on_start: FStart,
+        mut on_success: FSuccess,
+        mut on_failure: FFailure,
+    ) -> Result<()>
+    where
+        FCacheHit: FnMut(&Task) + Send,
+        FStart: FnMut(&Task) + Send,
+        FSuccess: FnMut(&Task, &std::process::Output, Duration) + Send,
+        FFailure: FnMut(&Task, &std::process::Output) + Send,
+    {
+        let mut cached_hash: Option<String> = None;
+
+        if !task.cache_files.is_empty() {
+            let hash = cache
+                .compute_task_hash(
+                    &task.name,
+                    &task.cmd,
+                    &task.env,
+                    &task.deps,
+                    &task.cache_files,
+                )
+                .await?;
+            if cache.is_cached(&task.name, &hash).await? {
+                on_cache_hit(task);
+                return Ok(());
+            }
+            cached_hash = Some(hash);
+        }
+
+        on_start(task);
+        let start_time = Instant::now();
+
+        let mut cmd = if cfg!(target_os = "windows") {
+            let mut cmd = Command::new("cmd");
+            cmd.args(["/C", &task.cmd]);
+            cmd
+        } else {
+            let mut cmd = Command::new("sh");
+            cmd.args(["-c", &task.cmd]);
+            cmd
+        };
+
+        for (key, value) in &task.env {
+            cmd.env(key, value);
+        }
+
+        cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
+
+        let output = cmd.output().await?;
+        let elapsed = start_time.elapsed();
+
+        if output.status.success() {
+            if let Some(hash) = cached_hash {
+                cache.mark_cached(&task.name, &hash).await?;
+            }
+            on_success(task, &output, elapsed);
+            Ok(())
+        } else {
+            on_failure(task, &output);
+            anyhow::bail!(
+                "Task '{}' failed with exit code: {:?}",
+                task.name,
+                output.status.code()
+            );
+        }
     }
 }

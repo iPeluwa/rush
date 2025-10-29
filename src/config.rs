@@ -1,8 +1,13 @@
 use anyhow::Result;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use std::sync::OnceLock;
+
+static DEFAULT_REGEX: OnceLock<Regex> = OnceLock::new();
+static VAR_REGEX: OnceLock<Regex> = OnceLock::new();
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RushConfig {
@@ -32,7 +37,8 @@ impl RushConfig {
 
     fn expand_env_vars(content: &str) -> String {
         // Handle ${VAR:-default} syntax
-        let default_regex = regex::Regex::new(r"\$\{([^}]+):-([^}]*)\}").unwrap();
+        let default_regex = DEFAULT_REGEX
+            .get_or_init(|| Regex::new(r"\$\{([^}]+):-([^}]*)\}").expect("invalid default regex"));
         let mut expanded = default_regex
             .replace_all(content, |caps: &regex::Captures| {
                 let var_name = &caps[1];
@@ -42,7 +48,8 @@ impl RushConfig {
             .to_string();
 
         // Handle regular ${VAR} syntax
-        let var_regex = regex::Regex::new(r"\$\{([^}]+)\}").unwrap();
+        let var_regex =
+            VAR_REGEX.get_or_init(|| Regex::new(r"\$\{([^}]+)\}").expect("invalid var regex"));
         expanded = var_regex
             .replace_all(&expanded, |caps: &regex::Captures| {
                 let var_name = &caps[1];

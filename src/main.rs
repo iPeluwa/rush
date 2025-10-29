@@ -100,7 +100,10 @@ async fn main() -> Result<()> {
         }
     } else {
         println!("Available tasks:");
-        for (name, task) in &config.tasks {
+        let mut tasks: Vec<_> = config.tasks.iter().collect();
+        tasks.sort_by_key(|(name, _)| *name);
+
+        for (name, task) in tasks {
             match &task.description {
                 Some(desc) => println!("  {}: {} ({})", name, desc, task.cmd),
                 None => println!("  {}: {}", name, task.cmd),
