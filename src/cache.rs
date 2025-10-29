@@ -38,7 +38,7 @@ impl TaskCache {
         let mut dependency_list = dependencies.to_vec();
         dependency_list.sort();
 
-        let mut cache_inputs: Vec<_> = cache_files.iter().cloned().collect();
+        let mut cache_inputs = cache_files.to_vec();
         cache_inputs.sort();
 
         task::spawn_blocking(move || -> Result<String> {
