@@ -13,6 +13,7 @@ pub struct Task {
     pub cmd: String,
     pub env: HashMap<String, String>,
     pub cache_files: Vec<String>,
+    pub deps: Vec<String>,
 }
 
 impl TaskGraph {
@@ -29,7 +30,16 @@ impl TaskGraph {
     }
 
     pub fn add_dependency(&mut self, task: String, dependency: String) {
-        self.dependencies.entry(task).or_default().push(dependency);
+        self.dependencies
+            .entry(task.clone())
+            .or_default()
+            .push(dependency.clone());
+
+        if let Some(task_entry) = self.tasks.get_mut(&task) {
+            if !task_entry.deps.contains(&dependency) {
+                task_entry.deps.push(dependency);
+            }
+        }
     }
 
     pub fn topological_sort(&self, start_task: &str) -> Result<Vec<String>> {
@@ -110,6 +120,7 @@ impl From<&crate::config::RushConfig> for TaskGraph {
                 cmd: task_config.cmd.clone(),
                 env: task_config.env.clone(),
                 cache_files: task_config.cache.clone(),
+                deps: task_config.deps.clone(),
             };
 
             graph.add_task(name.clone(), task);

@@ -1,11 +1,13 @@
 use anyhow::{Context, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use tokio::process::Command;
+use tokio::sync::mpsc;
+use tokio::time::sleep;
 
 use crate::cache::TaskCache;
 use crate::graph::{Task, TaskGraph};
@@ -14,14 +16,17 @@ pub struct TaskExecutor {
     graph: TaskGraph,
     cache: TaskCache,
     verbose: bool,
+    workspace_root: PathBuf,
 }
 
 impl TaskExecutor {
     pub fn new(graph: TaskGraph, verbose: bool) -> Self {
+        let workspace_root = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
         Self {
             graph,
             cache: TaskCache::new(),
             verbose,
+            workspace_root,
         }
     }
 
@@ -201,15 +206,23 @@ impl TaskExecutor {
     }
 
     async fn run_single_task(&self, task: &Task) -> Result<()> {
-        // Check cache if cache files are specified
+        let mut cached_hash: Option<String> = None;
         if !task.cache_files.is_empty() {
             let hash = self
                 .cache
-                .compute_task_hash(&task.name, &task.cache_files)?;
-            if self.cache.is_cached(&task.name, &hash) {
+                .compute_task_hash(
+                    &task.name,
+                    &task.cmd,
+                    &task.env,
+                    &task.deps,
+                    &task.cache_files,
+                )
+                .await?;
+            if self.cache.is_cached(&task.name, &hash).await? {
                 println!("⚡ Task '{}' skipped (cached)", task.name);
                 return Ok(());
             }
+            cached_hash = Some(hash);
         }
 
         println!("🏃 Running task: {}", task.name);
@@ -239,12 +252,8 @@ impl TaskExecutor {
                 println!("{}", String::from_utf8_lossy(&output.stdout));
             }
 
-            // Cache the result if cache files are specified
-            if !task.cache_files.is_empty() {
-                let hash = self
-                    .cache
-                    .compute_task_hash(&task.name, &task.cache_files)?;
-                self.cache.mark_cached(&task.name, &hash)?;
+            if let Some(hash) = cached_hash {
+                self.cache.mark_cached(&task.name, &hash).await?;
             }
         } else {
             println!("❌ Task '{}' failed", task.name);
@@ -272,8 +281,7 @@ impl TaskExecutor {
 
         println!("👀 Watching for file changes... (Press Ctrl+C to stop)");
 
-        // Set up file watcher
-        let (tx, rx) = mpsc::channel();
+        let (tx, mut rx) = mpsc::unbounded_channel();
         let mut watcher: RecommendedWatcher = Watcher::new(
             move |res: notify::Result<Event>| {
                 if let Ok(event) = res {
@@ -286,39 +294,67 @@ impl TaskExecutor {
         // Watch current directory
         watcher.watch(Path::new("."), RecursiveMode::Recursive)?;
 
-        // Watch loop
-        loop {
-            match rx.recv_timeout(Duration::from_millis(100)) {
-                Ok(_event) => {
-                    // Debounce: wait a bit for more changes
-                    std::thread::sleep(Duration::from_millis(200));
+        let cache_root = self.normalize_to_workspace(self.cache.cache_dir());
 
-                    // Drain any additional events
-                    while rx.try_recv().is_ok() {}
+        while let Some(event) = rx.recv().await {
+            if self.should_ignore_event(&event, &cache_root) {
+                continue;
+            }
 
-                    println!("\n🔄 File change detected, re-running task: {task_name}");
+            let mut aggregated_events = vec![event];
+            let debounce = sleep(Duration::from_millis(200));
+            tokio::pin!(debounce);
 
-                    // Clear cache to force rebuild
-                    let _ = std::fs::remove_dir_all(".rush-cache");
-
-                    if parallel {
-                        if let Err(e) = self.execute_task_parallel(task_name).await {
-                            eprintln!("❌ Task failed: {e}");
+            loop {
+                tokio::select! {
+                    _ = &mut debounce => break,
+                    maybe_event = rx.recv() => {
+                        match maybe_event {
+                            Some(next_event) => {
+                                if !self.should_ignore_event(&next_event, &cache_root) {
+                                    aggregated_events.push(next_event);
+                                }
+                            }
+                            None => return Ok(()),
                         }
-                    } else if let Err(e) = self.execute_task(task_name).await {
-                        eprintln!("❌ Task failed: {e}");
                     }
-
-                    println!("👀 Watching for more changes...");
-                }
-                Err(mpsc::RecvTimeoutError::Timeout) => {
-                    // No events, continue watching
-                    tokio::task::yield_now().await;
-                }
-                Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    break;
                 }
             }
+
+            let changed_paths: Vec<PathBuf> = aggregated_events
+                .into_iter()
+                .flat_map(|event| event.paths.into_iter())
+                .collect();
+
+            if changed_paths.is_empty() {
+                continue;
+            }
+
+            let mut affected_tasks: Vec<String> = self
+                .affected_tasks_for_paths(&changed_paths, &cache_root)
+                .into_iter()
+                .collect();
+            affected_tasks.sort();
+
+            for task in &affected_tasks {
+                self.cache.invalidate_task(task).await?;
+            }
+
+            println!("\n🔄 File change detected, re-running task: {task_name}");
+
+            if parallel {
+                if let Err(e) = self.execute_task_parallel(task_name).await {
+                    eprintln!("❌ Task failed: {e}");
+                }
+            } else if let Err(e) = self.execute_task(task_name).await {
+                eprintln!("❌ Task failed: {e}");
+            }
+
+            if !affected_tasks.is_empty() {
+                println!("   Cache invalidated for: {}", affected_tasks.join(", "));
+            }
+
+            println!("👀 Watching for more changes...");
         }
 
         Ok(())
@@ -331,15 +367,23 @@ impl TaskExecutor {
     ) -> Result<()> {
         let start_time = Instant::now();
 
-        // Check cache if cache files are specified
+        let mut cached_hash: Option<String> = None;
         if !task.cache_files.is_empty() {
             let hash = self
                 .cache
-                .compute_task_hash(&task.name, &task.cache_files)?;
-            if self.cache.is_cached(&task.name, &hash) {
+                .compute_task_hash(
+                    &task.name,
+                    &task.cmd,
+                    &task.env,
+                    &task.deps,
+                    &task.cache_files,
+                )
+                .await?;
+            if self.cache.is_cached(&task.name, &hash).await? {
                 progress.set_message(format!("⚡ {} (cached)", task.name));
                 return Ok(());
             }
+            cached_hash = Some(hash);
         }
 
         progress.set_message(format!("🏃 Running {}", task.name));
@@ -367,12 +411,8 @@ impl TaskExecutor {
         if output.status.success() {
             progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
 
-            // Cache the result if cache files are specified
-            if !task.cache_files.is_empty() {
-                let hash = self
-                    .cache
-                    .compute_task_hash(&task.name, &task.cache_files)?;
-                self.cache.mark_cached(&task.name, &hash)?;
+            if let Some(hash) = cached_hash {
+                self.cache.mark_cached(&task.name, &hash).await?;
             }
         } else {
             progress.set_message(format!("❌ {} failed", task.name));
@@ -400,13 +440,22 @@ impl TaskExecutor {
     ) -> Result<()> {
         let start_time = Instant::now();
 
-        // Check cache if cache files are specified
+        let mut cached_hash: Option<String> = None;
         if !task.cache_files.is_empty() {
-            let hash = cache.compute_task_hash(&task.name, &task.cache_files)?;
-            if cache.is_cached(&task.name, &hash) {
+            let hash = cache
+                .compute_task_hash(
+                    &task.name,
+                    &task.cmd,
+                    &task.env,
+                    &task.deps,
+                    &task.cache_files,
+                )
+                .await?;
+            if cache.is_cached(&task.name, &hash).await? {
                 progress.set_message(format!("⚡ {} (cached)", task.name));
                 return Ok(());
             }
+            cached_hash = Some(hash);
         }
 
         progress.set_message(format!("🏃 Running {}", task.name));
@@ -434,10 +483,8 @@ impl TaskExecutor {
         if output.status.success() {
             progress.set_message(format!("✅ {} ({:.1}s)", task.name, elapsed.as_secs_f32()));
 
-            // Cache the result if cache files are specified
-            if !task.cache_files.is_empty() {
-                let hash = cache.compute_task_hash(&task.name, &task.cache_files)?;
-                cache.mark_cached(&task.name, &hash)?;
+            if let Some(hash) = cached_hash {
+                cache.mark_cached(&task.name, &hash).await?;
             }
         } else {
             progress.set_message(format!("❌ {} failed", task.name));
@@ -456,5 +503,51 @@ impl TaskExecutor {
         }
 
         Ok(())
+    }
+
+    fn normalize_to_workspace(&self, path: &Path) -> PathBuf {
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.workspace_root.join(path)
+        }
+    }
+
+    fn should_ignore_event(&self, event: &Event, cache_root: &Path) -> bool {
+        if event.paths.is_empty() {
+            return false;
+        }
+
+        event
+            .paths
+            .iter()
+            .all(|path| self.normalize_to_workspace(path).starts_with(cache_root))
+    }
+
+    fn affected_tasks_for_paths(&self, paths: &[PathBuf], cache_root: &Path) -> HashSet<String> {
+        let mut affected = HashSet::new();
+
+        for path in paths {
+            let absolute_path = self.normalize_to_workspace(path);
+
+            if absolute_path.starts_with(cache_root) {
+                continue;
+            }
+
+            for (name, task) in &self.graph.tasks {
+                if task.cache_files.is_empty() {
+                    continue;
+                }
+
+                if task.cache_files.iter().any(|cache_file| {
+                    let cache_path = Path::new(cache_file);
+                    self.normalize_to_workspace(cache_path) == absolute_path
+                }) {
+                    affected.insert(name.clone());
+                }
+            }
+        }
+
+        affected
     }
 }
